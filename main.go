@@ -9,6 +9,5 @@ import (
 func main() {
 	if err := cmd.RootCmd.Execute(); err != nil {
 		log.Fatal("%w", err)
-		// os.exit(1)
 	}
 }
