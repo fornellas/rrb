@@ -89,7 +89,7 @@ func (w *Watcher) addRecursively(path string) error {
 			}
 			log.Printf("failed to watch %s: %s", path, err)
 		}
-		log.Printf("watching: %s", path)
+		// log.Printf("watching: %s", path)
 
 		return nil
 	}); err != nil {
@@ -141,15 +141,15 @@ func (w *Watcher) watch() {
 			if !ok { // Channel was closed (i.e. Watcher.Close() was called).
 				return
 			}
-			log.Println("event:", event)
+			// log.Println("event:", event)
 
 			addRecursively, err := isNewDirectory(event)
 			if err != nil {
-				log.Println("error:", err)
+				// log.Println("error:", err)
 				w.ErrorsCn <- err
 			} else if addRecursively {
 				if err := w.addRecursively(event.Name); err != nil {
-					log.Println("error:", err)
+					// log.Println("error:", err)
 					w.ErrorsCn <- err
 				}
 			}
@@ -159,7 +159,7 @@ func (w *Watcher) watch() {
 				panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", event.Name, err))
 			}
 			if !match {
-				log.Println("not a match")
+				// log.Println("not a match")
 				continue
 			}
 
@@ -168,30 +168,30 @@ func (w *Watcher) watch() {
 				panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", event.Name, err))
 			}
 			if match {
-				log.Println("ignoring")
+				// log.Println("ignoring")
 				continue
 			}
 
-			log.Println("CHANGED")
+			// log.Println("CHANGED")
 			now := time.Now()
 			if lastChangedTime.IsZero() {
-				log.Println("first event, debouncing")
+				// log.Println("first event, debouncing")
 				debounceWait = w.Config.DebounceDuration
 			} else {
 				if now.Sub(lastChangedTime) > w.Config.DebounceDuration {
-					log.Println("delay elapsed")
-					log.Println(">>>> BUILD <<<<")
+					// log.Println("delay elapsed")
+					// log.Println(">>>> BUILD <<<<")
 					w.ChangedFilesCn <- struct{}{}
 					debounceWait = forever
 				} else {
-					log.Println("change too short, waiting for delay")
+					// log.Println("change too short, waiting for delay")
 					debounceWait = w.Config.DebounceDuration
 				}
 			}
 			lastChangedTime = now
 		case <-time.After(debounceWait):
-			log.Println("debounced")
-			log.Println(">>>> BUILD <<<<")
+			// log.Println("debounced")
+			// log.Println(">>>> BUILD <<<<")
 			w.ChangedFilesCn <- struct{}{}
 			debounceWait = forever
 			lastChangedTime = time.Time{}

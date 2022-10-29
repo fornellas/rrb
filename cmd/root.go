@@ -40,9 +40,8 @@ var RootCmd = &cobra.Command{
 		for {
 			select {
 			case <-w.ChangedFilesCn:
-				log.Println("GOTTA BUILD!!!!")
 				if err := r.Run(); err != nil {
-					log.Printf("Run(): %s", err)
+					log.Printf("Error: Run(): %s", err)
 				}
 			case err := <-w.ErrorsCn:
 				log.Println("ERROR: ", err)
