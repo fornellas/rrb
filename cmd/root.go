@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/fornellas/rrb/watcher"
 )
 
 var RootCmd = &cobra.Command{
@@ -15,10 +17,22 @@ var RootCmd = &cobra.Command{
 		"executed, then its process tree is gracefully terminated, before running the " +
 		"command again.",
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := cmd.Help(); err != nil {
-			log.Fatal("%w", err)
+		if len(args) != 0 {
+			if err := cmd.Help(); err != nil {
+				log.Fatal("%w", err)
+			}
+			os.Exit(1)
 		}
-		os.Exit(1)
+
+		_, err := watcher.NewWatcher(watcher.WatcherConfig{
+			RootPath: directory,
+			Pattern:  pattern,
+		})
+		if err != nil {
+			log.Fatalf("NewWatcher: %s", err.Error())
+		}
+		<-make(chan struct{})
+
 	},
 }
 
