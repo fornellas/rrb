@@ -16,9 +16,9 @@ import (
 )
 
 type Config struct {
-	RootPath string
-	Patterns []string
-	// IgnorePatterns   []string
+	RootPath         string
+	Patterns         []string
+	IgnorePatterns   []string
 	DebounceDuration time.Duration
 }
 
@@ -40,17 +40,11 @@ func NewWatcher(cfg Config) (*Watcher, error) {
 	}
 	cfg.RootPath = filepath.Clean(cfg.RootPath)
 
-	for _, pattern := range cfg.Patterns {
+	for _, pattern := range append(cfg.Patterns, cfg.IgnorePatterns...) {
 		if !doublestar.ValidatePattern(pattern) {
 			return nil, fmt.Errorf("invalid pattern: %v", pattern)
 		}
 	}
-
-	// for _, pattern := range cfg.IgnorePatterns {
-	// 	if !doublestar.ValidatePattern(pattern) {
-	// 		return nil, fmt.Errorf("invalid pattern: %v", pattern)
-	// 	}
-	// }
 
 	w := &Watcher{
 		Config:         cfg,
@@ -118,8 +112,8 @@ func isNewDirectory(event fsnotify.Event) (bool, error) {
 	return fileInfo.IsDir(), nil
 }
 
-func (w *Watcher) match(path string) (bool, error) {
-	for _, pattern := range w.Config.Patterns {
+func (w *Watcher) match(patterns []string, path string) (bool, error) {
+	for _, pattern := range patterns {
 		pathSeparator := string(os.PathSeparator)
 		absPattern := w.Config.RootPath + pathSeparator + strings.TrimPrefix(pattern, pathSeparator)
 		match, err := doublestar.PathMatch(
@@ -160,12 +154,21 @@ func (w *Watcher) watch() {
 				}
 			}
 
-			match, err := w.match(event.Name)
+			match, err := w.match(w.Config.Patterns, event.Name)
 			if err != nil {
 				panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", event.Name, err))
 			}
 			if !match {
 				log.Println("not a match")
+				continue
+			}
+
+			match, err = w.match(w.Config.IgnorePatterns, event.Name)
+			if err != nil {
+				panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", event.Name, err))
+			}
+			if match {
+				log.Println("ignoring")
 				continue
 			}
 
