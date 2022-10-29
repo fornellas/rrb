@@ -3,6 +3,7 @@ package cmd
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -24,9 +25,11 @@ var RootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		_, err := watcher.NewWatcher(watcher.WatcherConfig{
+		_, err := watcher.NewWatcher(watcher.Config{
 			RootPath: directory,
 			Pattern:  pattern,
+			// FIXME pull from argument
+			DebounceDuration: time.Second * 3,
 		})
 		if err != nil {
 			log.Fatalf("NewWatcher: %s", err.Error())
