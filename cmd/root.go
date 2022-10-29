@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/fornellas/rrb/runner"
 	"github.com/fornellas/rrb/watcher"
 )
 
@@ -18,10 +19,8 @@ var RootCmd = &cobra.Command{
 		"executed, then its process tree is gracefully terminated, before running the " +
 		"command again.",
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) != 0 {
-			if err := cmd.Help(); err != nil {
-				log.Fatal("%w", err)
-			}
+		if len(args) == 0 {
+			log.Fatal("Missing build command.")
 			os.Exit(1)
 		}
 
@@ -36,10 +35,15 @@ var RootCmd = &cobra.Command{
 		}
 		defer w.Close()
 
+		r := runner.NewRunner(args[0], args[1:]...)
+
 		for {
 			select {
 			case <-w.ChangedFilesCn:
 				log.Println("GOTTA BUILD!!!!")
+				if err := r.Run(); err != nil {
+					log.Printf("Run(): %s", err)
+				}
 			case err := <-w.ErrorsCn:
 				log.Println("ERROR: ", err)
 			}

@@ -3,6 +3,7 @@ module github.com/fornellas/rrb
 go 1.18
 
 require (
+	github.com/alessio/shellescape v1.4.1
 	github.com/bmatcuk/doublestar/v4 v4.2.0
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/spf13/cobra v1.6.0
