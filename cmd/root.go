@@ -25,7 +25,7 @@ var RootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		_, err := watcher.NewWatcher(watcher.Config{
+		w, err := watcher.NewWatcher(watcher.Config{
 			RootPath:         directory,
 			Pattern:          pattern,
 			DebounceDuration: debounce,
@@ -33,8 +33,16 @@ var RootCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("NewWatcher: %s", err.Error())
 		}
-		<-make(chan struct{})
+		defer w.Close()
 
+		for {
+			select {
+			case <-w.ChangedFilesCn:
+				log.Println("GOTTA BUILD!!!!")
+			case err := <-w.ErrorsCn:
+				log.Println("ERROR: ", err)
+			}
+		}
 	},
 }
 

@@ -105,7 +105,7 @@ func isNewDirectory(event fsnotify.Event) (bool, error) {
 
 func (w *Watcher) watch() {
 	forever := time.Duration(math.MaxInt64)
-	debounceWait := forever
+	debounceWait := time.Duration(0)
 	var lastChangedTime time.Time
 	for {
 		select {
@@ -136,6 +136,7 @@ func (w *Watcher) watch() {
 				if now.Sub(lastChangedTime) > w.Config.DebounceDuration {
 					log.Println("delay elapsed")
 					log.Println(">>>> BUILD <<<<")
+					w.ChangedFilesCn <- struct{}{}
 					debounceWait = forever
 				} else {
 					log.Println("change too short, waiting for delay")
@@ -146,6 +147,7 @@ func (w *Watcher) watch() {
 		case <-time.After(debounceWait):
 			log.Println("debounced")
 			log.Println(">>>> BUILD <<<<")
+			w.ChangedFilesCn <- struct{}{}
 			debounceWait = forever
 			lastChangedTime = time.Time{}
 		case err, ok := <-w.fsnWatcher.Errors:
@@ -159,6 +161,7 @@ func (w *Watcher) watch() {
 }
 
 func (w *Watcher) Close() error {
+	log.Println("Close()")
 	// TODO cancellation context for watch
 	return w.fsnWatcher.Close()
 }
