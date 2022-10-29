@@ -8,14 +8,17 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fsnotify/fsnotify"
 )
 
 type Config struct {
-	RootPath         string
-	Pattern          string
+	RootPath string
+	Patterns []string
+	// IgnorePatterns   []string
 	DebounceDuration time.Duration
 }
 
@@ -36,6 +39,18 @@ func NewWatcher(cfg Config) (*Watcher, error) {
 		}
 	}
 	cfg.RootPath = filepath.Clean(cfg.RootPath)
+
+	for _, pattern := range cfg.Patterns {
+		if !doublestar.ValidatePattern(pattern) {
+			return nil, fmt.Errorf("invalid pattern: %v", pattern)
+		}
+	}
+
+	// for _, pattern := range cfg.IgnorePatterns {
+	// 	if !doublestar.ValidatePattern(pattern) {
+	// 		return nil, fmt.Errorf("invalid pattern: %v", pattern)
+	// 	}
+	// }
 
 	w := &Watcher{
 		Config:         cfg,
@@ -103,6 +118,24 @@ func isNewDirectory(event fsnotify.Event) (bool, error) {
 	return fileInfo.IsDir(), nil
 }
 
+func (w *Watcher) match(path string) (bool, error) {
+	for _, pattern := range w.Config.Patterns {
+		pathSeparator := string(os.PathSeparator)
+		absPattern := w.Config.RootPath + pathSeparator + strings.TrimPrefix(pattern, pathSeparator)
+		match, err := doublestar.PathMatch(
+			absPattern,
+			path,
+		)
+		if err != nil {
+			return false, err
+		}
+		if match {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (w *Watcher) watch() {
 	forever := time.Duration(math.MaxInt64)
 	debounceWait := time.Duration(0)
@@ -125,6 +158,15 @@ func (w *Watcher) watch() {
 					log.Println("error:", err)
 					w.ErrorsCn <- err
 				}
+			}
+
+			match, err := w.match(event.Name)
+			if err != nil {
+				panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", event.Name, err))
+			}
+			if !match {
+				log.Println("not a match")
+				continue
 			}
 
 			log.Println("CHANGED")

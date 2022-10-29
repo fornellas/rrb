@@ -26,8 +26,9 @@ var RootCmd = &cobra.Command{
 		}
 
 		w, err := watcher.NewWatcher(watcher.Config{
-			RootPath:         directory,
-			Pattern:          pattern,
+			RootPath: directory,
+			Patterns: patterns,
+			// IgnorePatterns:   ignorePatterns,
 			DebounceDuration: debounce,
 		})
 		if err != nil {
@@ -47,10 +48,11 @@ var RootCmd = &cobra.Command{
 }
 
 var directory string
-var pattern string
+var patterns []string
 var debounce time.Duration
 
-// var ignorePattern string
+// var ignorePatterns []string
+
 // var wait float32
 
 // func cobraInit(
@@ -63,18 +65,24 @@ func init() {
 		&directory, "directory", "d", ".",
 		"Root directory where to watch for file changes",
 	)
-	RootCmd.Flags().StringVarP(
-		&pattern, "pattern", "p", "**/*.{c,h,cpp,go,py,rb}",
-		"Pattern of files to watch for",
+	RootCmd.Flags().StringArrayVarP(
+		&patterns, "pattern", "p", []string{
+			"**/*.{c,h,cpp,go,py,rb,sh,js,java,kt,php}",
+		},
+		"Pattern to watch for changes (relative to given directory)",
 	)
 	RootCmd.Flags().DurationVarP(
 		&debounce, "debounce", "b", 200*time.Millisecond,
 		"Idle time after file change before calling build",
 	)
-	// RootCmd.Flags().StringVarP(
-	// 	&ignorePattern, "ignore-pattern", "i", "coverage/*",
-	// 	"Pattern of files to ignore",
+	// RootCmd.Flags().StringArrayVarP(
+	// 	&ignorePatterns, "ignore", "i", []string{
+	// 		"/.git/*",
+	// 		"/**/*.{o}",
+	// 	},
+	// 	"usage string",
 	// )
+
 	// RootCmd.Flags().Float32VarP(
 	// 	&wait, "wait", "w", 3.0,
 	// 	"Seconds to wait after SIGTERM before sending SIGKILL",
