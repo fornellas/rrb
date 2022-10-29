@@ -26,10 +26,9 @@ var RootCmd = &cobra.Command{
 		}
 
 		_, err := watcher.NewWatcher(watcher.Config{
-			RootPath: directory,
-			Pattern:  pattern,
-			// FIXME pull from argument
-			DebounceDuration: time.Second * 3,
+			RootPath:         directory,
+			Pattern:          pattern,
+			DebounceDuration: debounce,
 		})
 		if err != nil {
 			log.Fatalf("NewWatcher: %s", err.Error())
@@ -41,6 +40,7 @@ var RootCmd = &cobra.Command{
 
 var directory string
 var pattern string
+var debounce time.Duration
 
 // var ignorePattern string
 // var wait float32
@@ -58,6 +58,10 @@ func init() {
 	RootCmd.Flags().StringVarP(
 		&pattern, "pattern", "p", "**/*.{c,h,cpp,go,py,rb}",
 		"Pattern of files to watch for",
+	)
+	RootCmd.Flags().DurationVarP(
+		&debounce, "debounce", "b", 200*time.Millisecond,
+		"Idle time after file change before calling build",
 	)
 	// RootCmd.Flags().StringVarP(
 	// 	&ignorePattern, "ignore-pattern", "i", "coverage/*",
