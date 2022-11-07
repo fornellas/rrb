@@ -1,112 +1,111 @@
-package main
+package process
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/prometheus/procfs"
 )
 
 type PID int
+type Session int
 
 type Process struct {
-	PID      PID
-	Children map[PID]*Process
-	Proc     procfs.Proc
+	// The process ID.
+	PID PID
+	// The filename of the executable.
+	Comm string
+	// The PID of the parent of this process.
+	PPID PID
+	// The process group ID of the process.
+	PGRP PID
+	// The session ID of the process.
+	Session Session
+	// Children processes.
+	Children []*Process
 }
 
-type PGID int
-
-type ProcessGroup struct {
-	PGID      PGID
-	Processes map[PID]*Process
+func (p *Process) String() string {
+	return fmt.Sprintf("%s(%d)", p.Comm, p.PID)
 }
 
-type SID int
-
-type Session struct {
-	SID           SID
-	ProcessGroups map[PGID]*ProcessGroup
-}
-
-func (s *Session) Print() {
-	fmt.Printf("Session %d:\n", s.SID)
-	for _, processGroup := range s.ProcessGroups {
-		fmt.Printf("  Process group %d:\n", processGroup.PGID)
-		for _, process := range processGroup.Processes {
-			comm, err := process.Proc.Comm()
-			if err != nil {
-				continue
-			}
-			fmt.Printf("    Process %d: %s\n", process.PID, comm)
-		}
+func (p *Process) SprintTree(indent int) string {
+	res := fmt.Sprintf("%s%s\n", strings.Repeat("  ", indent), p)
+	for _, childProcess := range p.Children {
+		res += childProcess.SprintTree(indent + 1)
 	}
+	return res
 }
 
-type Sessions map[SID]*Session
-
-func (sessions *Sessions) Print() {
-	for _, session := range *sessions {
-		session.Print()
+func (p *Process) Signal(sig os.Signal) error {
+	osProc, err := os.FindProcess(int(p.PID))
+	if err != nil {
+		return err
 	}
-}
-
-func (sessions *Sessions) GetSession(pid PID) *Session {
-	for _, session := range *sessions {
-		for _, processGroup := range session.ProcessGroups {
-			if _, ok := processGroup.Processes[pid]; ok {
-				return session
-			}
-		}
+	err = osProc.Signal(sig)
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
-func GetSessions() (*Sessions, error) {
+type ProcessMap map[PID]*Process
+
+func GetProcessMap() (ProcessMap, error) {
 	fs, err := procfs.NewDefaultFS()
 	if err != nil {
 		return nil, err
 	}
 
-	procs, err := fs.AllProcs()
+	allProcs, err := fs.AllProcs()
 	if err != nil {
 		return nil, err
 	}
 
-	sessions := Sessions{}
-
-	for _, proc := range procs {
+	processMap := ProcessMap{}
+	for _, proc := range allProcs {
 		procStat, err := proc.Stat()
 		if err != nil {
 			continue
 		}
-
-		sid := SID(procStat.Session)
-
-		session, ok := sessions[sid]
-		if !ok {
-			session = &Session{
-				SID:           sid,
-				ProcessGroups: map[PGID]*ProcessGroup{},
-			}
-			sessions[sid] = session
-		}
-
-		pgid := PGID(procStat.PGRP)
-		processGroup, ok := session.ProcessGroups[pgid]
-		if !ok {
-			processGroup = &ProcessGroup{
-				PGID:      pgid,
-				Processes: map[PID]*Process{},
-			}
-			session.ProcessGroups[pgid] = processGroup
-		}
 		pid := PID(proc.PID)
-		processGroup.Processes[pid] = &Process{
+		process := Process{
 			PID:      pid,
-			Children: map[PID]*Process{}, // FIXME
-			Proc:     proc,
+			Comm:     procStat.Comm,
+			PPID:     PID(procStat.PPID),
+			PGRP:     PID(procStat.PGRP),
+			Session:  Session(procStat.Session),
+			Children: []*Process{},
 		}
+		processMap[pid] = &process
 	}
 
-	return &sessions, nil
+	for _, process := range processMap {
+		parentProcess, ok := processMap[process.PPID]
+		if !ok {
+			continue
+		}
+		parentProcess.Children = append(parentProcess.Children, process)
+	}
+
+	return processMap, nil
+}
+
+func SelfProcess() (*Process, error) {
+	fs, err := procfs.NewDefaultFS()
+	if err != nil {
+		return nil, err
+	}
+
+	selfProc, err := fs.Self()
+	if err != nil {
+		return nil, err
+	}
+
+	processMap, err := GetProcessMap()
+	if err != nil {
+		return nil, err
+	}
+	return processMap[PID(selfProc.PID)], nil
 }
