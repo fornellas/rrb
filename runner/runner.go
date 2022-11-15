@@ -21,6 +21,8 @@ type Runner struct {
 	Args   []string
 	cmdStr string
 	idleCn chan struct{}
+	waitCn chan struct{}
+	killCn chan struct{}
 	cmd    *exec.Cmd
 }
 
@@ -35,6 +37,8 @@ func NewRunner(name string, args ...string) *Runner {
 		Args:   args,
 		cmdStr: strings.Join(escapedCmd, " "),
 		idleCn: make(chan struct{}),
+		waitCn: make(chan struct{}),
+		killCn: make(chan struct{}),
 	}
 	go func() { r.idleCn <- struct{}{} }()
 	return &r
@@ -111,7 +115,8 @@ func terminateChildren() error {
 no_more_children:
 	for {
 		select {
-		case <-time.After(500 * time.Millisecond):
+		// FIXME configurable value
+		case <-time.After(3 * time.Second):
 			selfProcess, err := process.SelfProcess()
 			if err != nil {
 				return err
@@ -124,7 +129,7 @@ no_more_children:
 			for _, childProcess := range selfProcess.Children {
 				fmt.Printf("%s", childProcess.SprintTree(0))
 				log.Printf("Sending SIGKILL to %s", childProcess)
-				_ = childProcess.Signal(syscall.SIGTERM)
+				_ = childProcess.Signal(syscall.SIGKILL)
 			}
 		case err = <-waitErrCh:
 			break no_more_children
@@ -141,43 +146,41 @@ no_more_children:
 func (r *Runner) Run() error {
 	log.Printf("Run()")
 
-ready:
-	for {
-		log.Printf("waiting for idle...")
-		select {
-		case <-r.idleCn:
-			log.Printf("Idle! We can run!")
-			break ready
-		default:
-			log.Printf("Still running, we have to wait!")
-			// TODO kill
-		}
+	select {
+	case <-r.idleCn:
+		break
+	default:
+		log.Printf("Killing...")
+		r.killCn <- struct{}{}
+		<-r.idleCn
 	}
 
 	// This ensures that orphan process will become children of the process
 	// that called Start(), so we can babysit then.
 	if err := subreaper.Set(); err != nil {
+		r.idleCn <- struct{}{}
 		return err
 	}
 
-	cmd := exec.Command(r.Name, r.Args...)
-	cmd.Env = os.Environ()
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.SysProcAttr = &syscall.SysProcAttr{
+	r.cmd = exec.Command(r.Name, r.Args...)
+	r.cmd.Env = os.Environ()
+	r.cmd.Stdin = os.Stdin
+	r.cmd.Stdout = os.Stdout
+	r.cmd.Stderr = os.Stderr
+	r.cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setsid: true,
 	}
 	log.Printf("> %s", r.cmdStr)
-	if err := cmd.Start(); err != nil {
+	if err := r.cmd.Start(); err != nil {
+		r.idleCn <- struct{}{}
 		return err
 	}
-	r.cmd = cmd
 
 	go func() {
 		if err := r.cmd.Wait(); err != nil {
 			log.Printf("Wait(): %s", err)
 		}
+
 		if r.cmd.ProcessState.Success() {
 			log.Printf("Success!")
 		} else {
@@ -185,7 +188,28 @@ ready:
 		}
 
 		if err := terminateChildren(); err != nil {
-			log.Printf("terminateChildren: %s", err)
+			if r.cmd.ProcessState.Success() {
+				log.Printf("Error: %s", err)
+			} else {
+				log.Printf("Warning: %s", err)
+			}
+		}
+
+		r.waitCn <- struct{}{}
+	}()
+
+	go func() {
+		select {
+		case <-r.waitCn:
+		case <-r.killCn:
+			_ = r.cmd.Process.Signal(syscall.SIGTERM)
+			select {
+			case <-r.waitCn:
+			// FIXME configurable value
+			case <-time.After(3 * time.Second):
+				_ = r.cmd.Process.Signal(syscall.SIGTERM)
+				<-r.waitCn
+			}
 		}
 
 		r.idleCn <- struct{}{}

@@ -44,7 +44,7 @@ var RootCmd = &cobra.Command{
 					log.Printf("Error: Run(): %s", err)
 				}
 			case err := <-w.ErrorsCn:
-				log.Println("ERROR: ", err)
+				log.Fatalf("Watcher: %s", err)
 			}
 		}
 	},
