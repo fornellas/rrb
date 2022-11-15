@@ -35,13 +35,13 @@ var RootCmd = &cobra.Command{
 		}
 		defer w.Close()
 
-		r := runner.NewRunner(args[0], args[1:]...)
+		r := runner.NewRunner(killWait, args[0], args[1:]...)
 
 		for {
 			select {
 			case <-w.ChangedFilesCn:
 				if err := r.Run(); err != nil {
-					log.Printf("Error: Run(): %s", err)
+					log.Printf("Error: %s", err)
 				}
 			case err := <-w.ErrorsCn:
 				log.Fatalf("Watcher: %s", err)
@@ -54,8 +54,7 @@ var directory string
 var patterns []string
 var ignorePatterns []string
 var debounce time.Duration
-
-// var wait float32
+var killWait time.Duration
 
 // func cobraInit(
 // // TODO setup log
@@ -80,12 +79,11 @@ func init() {
 		"Pattern to ignore changes (relative to given directory)",
 	)
 	RootCmd.Flags().DurationVarP(
-		&debounce, "debounce", "b", 200*time.Millisecond,
+		&debounce, "debounce", "b", 500*time.Millisecond,
 		"Idle time after file change before calling build",
 	)
-
-	// RootCmd.Flags().Float32VarP(
-	// 	&wait, "wait", "w", 3.0,
-	// 	"Seconds to wait after SIGTERM before sending SIGKILL",
-	// )
+	RootCmd.Flags().DurationVarP(
+		&killWait, "kill-wait", "w", time.Second,
+		"Seconds to wait after SIGTERM before sending SIGKILL",
+	)
 }

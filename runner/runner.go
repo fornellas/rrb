@@ -17,28 +17,30 @@ import (
 )
 
 type Runner struct {
-	Name   string
-	Args   []string
-	cmdStr string
-	idleCn chan struct{}
-	waitCn chan struct{}
-	killCn chan struct{}
-	cmd    *exec.Cmd
+	KillWait time.Duration
+	Name     string
+	Args     []string
+	cmdStr   string
+	idleCn   chan struct{}
+	waitCn   chan struct{}
+	killCn   chan struct{}
+	cmd      *exec.Cmd
 }
 
-func NewRunner(name string, args ...string) *Runner {
+func NewRunner(killWait time.Duration, name string, args ...string) *Runner {
 	escapedCmd := []string{}
 	for _, s := range append([]string{name}, args...) {
 		escapedCmd = append(escapedCmd, shellescape.Quote(s))
 	}
 
 	r := Runner{
-		Name:   name,
-		Args:   args,
-		cmdStr: strings.Join(escapedCmd, " "),
-		idleCn: make(chan struct{}),
-		waitCn: make(chan struct{}),
-		killCn: make(chan struct{}),
+		KillWait: killWait,
+		Name:     name,
+		Args:     args,
+		cmdStr:   strings.Join(escapedCmd, " "),
+		idleCn:   make(chan struct{}),
+		waitCn:   make(chan struct{}),
+		killCn:   make(chan struct{}),
 	}
 	go func() { r.idleCn <- struct{}{} }()
 	return &r
@@ -69,7 +71,7 @@ func waitStatusStr(waitStatus syscall.WaitStatus) string {
 	return res
 }
 
-func terminateChildren() error {
+func (r *Runner) terminateChildren() error {
 	selfProcess, err := process.SelfProcess()
 	if err != nil {
 		return err
@@ -87,7 +89,6 @@ func terminateChildren() error {
 		var err error
 		for {
 			var wpid int
-			log.Printf("Waiting for children...")
 			wpid, err = syscall.Wait4(-1, &waitStatus, 0, &rusage)
 			if err != nil {
 				if err == syscall.ECHILD {
@@ -100,23 +101,21 @@ func terminateChildren() error {
 			}
 			log.Printf("Child %d %s", wpid, waitStatusStr(waitStatus))
 		}
-		log.Printf("No more children left")
 		waitErrCh <- err
 	}()
 
-	log.Printf("Orphan process left behind, terminating them")
+	log.Printf("Orphan process left behind!")
 	for _, childProcess := range selfProcess.Children {
-		fmt.Printf("%s", childProcess.SprintTree(0))
+		// fmt.Printf("%s", childProcess.SprintTree(0))
 		// FIXME send to process group
-		log.Printf("Sending SIGTERM to %s", childProcess)
+		log.Printf("Sending SIGTERM to %s...", childProcess)
 		_ = childProcess.Signal(syscall.SIGTERM)
 	}
 
 no_more_children:
 	for {
 		select {
-		// FIXME configurable value
-		case <-time.After(3 * time.Second):
+		case <-time.After(r.KillWait):
 			selfProcess, err := process.SelfProcess()
 			if err != nil {
 				return err
@@ -125,10 +124,9 @@ no_more_children:
 				break no_more_children
 			}
 
-			log.Printf("Orphan process still alive, sending SIGKILL")
 			for _, childProcess := range selfProcess.Children {
-				fmt.Printf("%s", childProcess.SprintTree(0))
-				log.Printf("Sending SIGKILL to %s", childProcess)
+				// fmt.Printf("%s", childProcess.SprintTree(0))
+				log.Printf("Sending SIGKILL to %s...", childProcess)
 				_ = childProcess.Signal(syscall.SIGKILL)
 			}
 		case err = <-waitErrCh:
@@ -140,12 +138,10 @@ no_more_children:
 		log.Printf("wait error: %s", err)
 	}
 
-	return fmt.Errorf("Main process left orphan process behind")
+	return fmt.Errorf("Orphan process behind")
 }
 
 func (r *Runner) Run() error {
-	log.Printf("Run()")
-
 	select {
 	case <-r.idleCn:
 		break
@@ -177,19 +173,17 @@ func (r *Runner) Run() error {
 	}
 
 	go func() {
-		if err := r.cmd.Wait(); err != nil {
-			log.Printf("Wait(): %s", err)
-		}
+		_ = r.cmd.Wait()
 
 		if r.cmd.ProcessState.Success() {
-			log.Printf("Success!")
+			log.Printf("Success: %s", r.cmd.ProcessState)
 		} else {
-			log.Printf("Failure!")
+			log.Printf("Failure: %s", r.cmd.ProcessState)
 		}
 
-		if err := terminateChildren(); err != nil {
+		if err := r.terminateChildren(); err != nil {
 			if r.cmd.ProcessState.Success() {
-				log.Printf("Error: %s", err)
+				log.Printf("Failure: %s", err)
 			} else {
 				log.Printf("Warning: %s", err)
 			}
@@ -205,8 +199,7 @@ func (r *Runner) Run() error {
 			_ = r.cmd.Process.Signal(syscall.SIGTERM)
 			select {
 			case <-r.waitCn:
-			// FIXME configurable value
-			case <-time.After(3 * time.Second):
+			case <-time.After(r.KillWait):
 				_ = r.cmd.Process.Signal(syscall.SIGTERM)
 				<-r.waitCn
 			}

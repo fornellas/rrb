@@ -172,7 +172,7 @@ func (w *Watcher) watch() {
 				continue
 			}
 
-			// log.Println("CHANGED")
+			log.Printf("Changed: %s (%s)", event.Name, event.Op)
 			now := time.Now()
 			if lastChangedTime.IsZero() {
 				// log.Println("first event, debouncing")
