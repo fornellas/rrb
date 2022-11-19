@@ -141,6 +141,42 @@ no_more_children:
 	return fmt.Errorf("Orphan process behind")
 }
 
+func (r *Runner) waitAll() {
+	_ = r.cmd.Wait()
+
+	if r.cmd.ProcessState.Success() {
+		log.Printf("Success: %s", r.cmd.ProcessState)
+	} else {
+		log.Printf("Failure: %s", r.cmd.ProcessState)
+	}
+
+	if err := r.terminateChildren(); err != nil {
+		if r.cmd.ProcessState.Success() {
+			log.Printf("Failure: %s", err)
+		} else {
+			log.Printf("Warning: %s", err)
+		}
+	}
+
+	r.waitCn <- struct{}{}
+}
+
+func (r *Runner) sendIdle() {
+	select {
+	case <-r.waitCn:
+	case <-r.killCn:
+		_ = r.cmd.Process.Signal(syscall.SIGTERM)
+		select {
+		case <-r.waitCn:
+		case <-time.After(r.KillWait):
+			_ = r.cmd.Process.Signal(syscall.SIGTERM)
+			<-r.waitCn
+		}
+	}
+
+	r.idleCn <- struct{}{}
+}
+
 func (r *Runner) Run() error {
 	select {
 	case <-r.idleCn:
@@ -172,41 +208,8 @@ func (r *Runner) Run() error {
 		return err
 	}
 
-	go func() {
-		_ = r.cmd.Wait()
-
-		if r.cmd.ProcessState.Success() {
-			log.Printf("Success: %s", r.cmd.ProcessState)
-		} else {
-			log.Printf("Failure: %s", r.cmd.ProcessState)
-		}
-
-		if err := r.terminateChildren(); err != nil {
-			if r.cmd.ProcessState.Success() {
-				log.Printf("Failure: %s", err)
-			} else {
-				log.Printf("Warning: %s", err)
-			}
-		}
-
-		r.waitCn <- struct{}{}
-	}()
-
-	go func() {
-		select {
-		case <-r.waitCn:
-		case <-r.killCn:
-			_ = r.cmd.Process.Signal(syscall.SIGTERM)
-			select {
-			case <-r.waitCn:
-			case <-time.After(r.KillWait):
-				_ = r.cmd.Process.Signal(syscall.SIGTERM)
-				<-r.waitCn
-			}
-		}
-
-		r.idleCn <- struct{}{}
-	}()
+	go r.waitAll()
+	go r.sendIdle()
 
 	return nil
 }
