@@ -15,6 +15,8 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
+const forever = time.Duration(math.MaxInt64)
+
 type Config struct {
 	RootPath         string
 	Patterns         []string
@@ -130,8 +132,62 @@ func (w *Watcher) match(patterns []string, path string) (bool, error) {
 	return false, nil
 }
 
+func (w *Watcher) processEvent(
+	event fsnotify.Event,
+	lastChangedTime *time.Time,
+	debounceWait *time.Duration,
+) {
+	// log.Println("event:", event)
+
+	addRecursively, err := isNewDirectory(event)
+	if err != nil {
+		// log.Println("error:", err)
+		w.ErrorsCn <- err
+	} else if addRecursively {
+		if err := w.addRecursively(event.Name); err != nil {
+			// log.Println("error:", err)
+			w.ErrorsCn <- err
+		}
+	}
+
+	match, err := w.match(w.Config.Patterns, event.Name)
+	if err != nil {
+		panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", event.Name, err))
+	}
+	if !match {
+		// log.Println("not a match")
+		return
+	}
+
+	match, err = w.match(w.Config.IgnorePatterns, event.Name)
+	if err != nil {
+		panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", event.Name, err))
+	}
+	if match {
+		// log.Println("ignoring")
+		return
+	}
+
+	log.Printf("Changed: %s (%s)", event.Name, event.Op)
+	now := time.Now()
+	if lastChangedTime.IsZero() {
+		// log.Println("first event, debouncing")
+		*debounceWait = w.Config.DebounceDuration
+	} else {
+		if now.Sub(*lastChangedTime) > w.Config.DebounceDuration {
+			// log.Println("delay elapsed")
+			// log.Println(">>>> BUILD <<<<")
+			w.ChangedFilesCn <- struct{}{}
+			*debounceWait = forever
+		} else {
+			// log.Println("change too short, waiting for delay")
+			*debounceWait = w.Config.DebounceDuration
+		}
+	}
+	*lastChangedTime = now
+}
+
 func (w *Watcher) watch() {
-	forever := time.Duration(math.MaxInt64)
 	debounceWait := time.Duration(0)
 	var lastChangedTime time.Time
 	for {
@@ -141,54 +197,7 @@ func (w *Watcher) watch() {
 			if !ok { // Channel was closed (i.e. Watcher.Close() was called).
 				return
 			}
-			// log.Println("event:", event)
-
-			addRecursively, err := isNewDirectory(event)
-			if err != nil {
-				// log.Println("error:", err)
-				w.ErrorsCn <- err
-			} else if addRecursively {
-				if err := w.addRecursively(event.Name); err != nil {
-					// log.Println("error:", err)
-					w.ErrorsCn <- err
-				}
-			}
-
-			match, err := w.match(w.Config.Patterns, event.Name)
-			if err != nil {
-				panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", event.Name, err))
-			}
-			if !match {
-				// log.Println("not a match")
-				continue
-			}
-
-			match, err = w.match(w.Config.IgnorePatterns, event.Name)
-			if err != nil {
-				panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", event.Name, err))
-			}
-			if match {
-				// log.Println("ignoring")
-				continue
-			}
-
-			log.Printf("Changed: %s (%s)", event.Name, event.Op)
-			now := time.Now()
-			if lastChangedTime.IsZero() {
-				// log.Println("first event, debouncing")
-				debounceWait = w.Config.DebounceDuration
-			} else {
-				if now.Sub(lastChangedTime) > w.Config.DebounceDuration {
-					// log.Println("delay elapsed")
-					// log.Println(">>>> BUILD <<<<")
-					w.ChangedFilesCn <- struct{}{}
-					debounceWait = forever
-				} else {
-					// log.Println("change too short, waiting for delay")
-					debounceWait = w.Config.DebounceDuration
-				}
-			}
-			lastChangedTime = now
+			w.processEvent(event, &lastChangedTime, &debounceWait)
 		case <-time.After(debounceWait):
 			// log.Println("debounced")
 			// log.Println(">>>> BUILD <<<<")
