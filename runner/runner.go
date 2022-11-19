@@ -71,7 +71,52 @@ func waitStatusStr(waitStatus syscall.WaitStatus) string {
 	return res
 }
 
-func (r *Runner) terminateChildren() error {
+func waitChildren(waitChildrenErrCh chan error) {
+	var waitStatus syscall.WaitStatus
+	var rusage syscall.Rusage
+	var err error
+	for {
+		var wpid int
+		wpid, err = syscall.Wait4(-1, &waitStatus, 0, &rusage)
+		if err != nil {
+			if err == syscall.ECHILD {
+				err = nil
+			}
+			break
+		}
+		if wpid == -1 {
+			break
+		}
+		log.Printf("Child %d %s", wpid, waitStatusStr(waitStatus))
+	}
+	waitChildrenErrCh <- err
+}
+
+func (r *Runner) syncWaitAndKill(waitChildrenErrCh chan error) error {
+	for {
+		select {
+		case <-time.After(r.KillWait):
+			selfProcess, err := process.SelfProcess()
+			if err != nil {
+				return err
+			}
+			if len(selfProcess.Children) == 0 {
+				return nil
+			}
+
+			for _, childProcess := range selfProcess.Children {
+				// fmt.Printf("%s", childProcess.SprintTree(0))
+				log.Printf("Sending SIGKILL to %s...", childProcess)
+				_ = childProcess.Signal(syscall.SIGKILL)
+			}
+
+		case err := <-waitChildrenErrCh:
+			return err
+		}
+	}
+}
+
+func (r *Runner) killChildren() error {
 	selfProcess, err := process.SelfProcess()
 	if err != nil {
 		return err
@@ -81,28 +126,9 @@ func (r *Runner) terminateChildren() error {
 		return nil
 	}
 
-	waitErrCh := make(chan error)
+	waitChildrenErrCh := make(chan error)
 
-	go func() {
-		var waitStatus syscall.WaitStatus
-		var rusage syscall.Rusage
-		var err error
-		for {
-			var wpid int
-			wpid, err = syscall.Wait4(-1, &waitStatus, 0, &rusage)
-			if err != nil {
-				if err == syscall.ECHILD {
-					err = nil
-				}
-				break
-			}
-			if wpid == -1 {
-				break
-			}
-			log.Printf("Child %d %s", wpid, waitStatusStr(waitStatus))
-		}
-		waitErrCh <- err
-	}()
+	go waitChildren(waitChildrenErrCh)
 
 	log.Printf("Orphan process left behind!")
 	for _, childProcess := range selfProcess.Children {
@@ -112,28 +138,7 @@ func (r *Runner) terminateChildren() error {
 		_ = childProcess.Signal(syscall.SIGTERM)
 	}
 
-no_more_children:
-	for {
-		select {
-		case <-time.After(r.KillWait):
-			selfProcess, err := process.SelfProcess()
-			if err != nil {
-				return err
-			}
-			if len(selfProcess.Children) == 0 {
-				break no_more_children
-			}
-
-			for _, childProcess := range selfProcess.Children {
-				// fmt.Printf("%s", childProcess.SprintTree(0))
-				log.Printf("Sending SIGKILL to %s...", childProcess)
-				_ = childProcess.Signal(syscall.SIGKILL)
-			}
-		case err = <-waitErrCh:
-			break no_more_children
-		}
-	}
-
+	err = r.syncWaitAndKill(waitChildrenErrCh)
 	if err != nil {
 		log.Printf("wait error: %s", err)
 	}
@@ -150,7 +155,7 @@ func (r *Runner) waitAll() {
 		log.Printf("Failure: %s", r.cmd.ProcessState)
 	}
 
-	if err := r.terminateChildren(); err != nil {
+	if err := r.killChildren(); err != nil {
 		if r.cmd.ProcessState.Success() {
 			log.Printf("Failure: %s", err)
 		} else {
