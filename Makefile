@@ -4,6 +4,10 @@ GOIMPORTS ?= goimports
 GOIMPORTS_VERSION ?= latest
 GOIMPORTS_LOCAL = github.com/fornellas/rrb/
 
+GOCYCLO ?= gocyclo
+GOCYCLO_VERSION = latest
+GOCYCLO_OVER ?= 10
+
 GOLANGCI_LINT ?= golangci-lint
 GOLANGCI_LINT_VERSION ?= latest
 GOLANGCI_LINT_RUN_ARGS ?= --timeout 5m
@@ -35,6 +39,7 @@ help: install-deps-help
 install-deps:
 	$(GO) install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
 	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	$(GO) install github.com/fzipp/gocyclo/cmd/gocyclo@$(GOCYCLO_VERSION)
 	$(GO) install github.com/rakyll/gotest@$(GOTEST_VERSION)
 
 ##
@@ -89,6 +94,16 @@ clean-golangci-lint:
 	$(GOLANGCI_LINT) cache clean
 clean: clean-golangci-lint
 
+# gocyclo
+
+.PHONY: gocyclo-help
+gocyclo-help:
+	@echo 'gocyclo: runs gocyclo'
+help: gocyclo-help
+.PHONY: gocyclo
+gocyclo: go-mod-tidy generate
+	$(GOCYCLO) -over $(GOCYCLO_OVER) -avg .
+
 # lint
 
 .PHONY: lint-help
@@ -96,7 +111,7 @@ lint-help:
 	@echo "lint: lint all files"
 help: lint-help
 .PHONY: lint
-lint: goimports go-mod-tidy golangci-lint
+lint: goimports go-mod-tidy golangci-lint gocyclo
 
 ##
 ## test
