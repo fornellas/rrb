@@ -1,156 +1,179 @@
+BINDIR ?= /usr/local/bin
+
 GO ?= go
 
+GOIMPORTS_VERSION ?= 0.3.0
 GOIMPORTS ?= goimports
-GOIMPORTS_VERSION ?= latest
-GOIMPORTS_LOCAL = github.com/fornellas/rrb/
+GOIMPORTS_LOCAL ?= github.com/fornellas/
 
-GOCYCLO ?= gocyclo
-GOCYCLO_VERSION = latest
-GOCYCLO_OVER ?= 10
-
+GOLANGCI_LINT_VERSION ?= 1.50.1
 GOLANGCI_LINT ?= golangci-lint
-GOLANGCI_LINT_VERSION ?= latest
-GOLANGCI_LINT_RUN_ARGS ?= --timeout 5m
+GOLANGCI_LINT_ARGS ?= --timeout 10m
 
 GO_TEST ?= gotest
-GOTEST_VERSION ?= latest
 GO_TEST_FLAGS ?= -v -race -cover -count=1
+GOTEST_VERSION ?= v0.0.6
 
 ##
 ## Help
 ##
 
-# help
-
 .PHONY: help
 help:
 
 ##
-## Dependencies
+## Clean
 ##
 
-# install-deps
+.PHONY: clean
+clean:
+clean-help:
+	@echo 'clean: clean all files'
+help: clean-help
+
+##
+## Install Deps
+##
 
 .PHONY: install-deps-help
 install-deps-help:
-	@echo 'install-deps: install dependencies required for the build'
+	@echo 'install-deps: install dependencies required by the build at BINDIR=$(BINDIR)'
 help: install-deps-help
+
 .PHONY: install-deps
 install-deps:
-	$(GO) install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
-	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
-	$(GO) install github.com/fzipp/gocyclo/cmd/gocyclo@$(GOCYCLO_VERSION)
-	$(GO) install github.com/rakyll/gotest@$(GOTEST_VERSION)
+
+.PHONY: uninstall-deps-help
+uninstall-deps-help:
+	@echo 'uninstall-deps: uninstall dependencies required by the build'
+help: uninstall-deps-help
+
+.PHONY: uninstall-deps
+uninstall-deps:
 
 ##
-## Generate
+## Lint
 ##
-
-# generate
-
-.PHONY: generate-help
-generate-help:
-	@echo 'generate: runs `go generate`'
-help: generate-help
-.PHONY: generate
-generate:
-	$(GO) generate
-
-##
-## lint
-##
-
-# goimports
-
-.PHONY: goimports-help
-goimports-help:
-	@echo 'goimports: formats all files with goimports'
-help: goimports-help
-.PHONY: goimports
-goimports: generate
-	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) .
-
-# go mod tidy
-
-.PHONY: go-mod-tidy-help
-go-mod-tidy-help:
-	@echo 'go-mod-tidy: runs `go mod tidy`'
-help: go-mod-tidy-help
-.PHONY: go-mod-tidy
-go-mod-tidy: goimports
-	$(GO) mod tidy
-
-# golangci-lint
-
-.PHONY: golangci-lint-help
-golangci-lint-help:
-	@echo 'golangci-lint: runs golangci-lint'
-help: golangci-lint-help
-.PHONY: golangci-lint
-golangci-lint: go-mod-tidy generate
-	$(GOLANGCI_LINT) run $(GOLANGCI_LINT_RUN_ARGS)
-.PHONY: clean-golangci-lint
-clean-golangci-lint:
-	$(GOLANGCI_LINT) cache clean
-clean: clean-golangci-lint
-
-# gocyclo
-
-.PHONY: gocyclo-help
-gocyclo-help:
-	@echo 'gocyclo: runs gocyclo'
-help: gocyclo-help
-.PHONY: gocyclo
-gocyclo: go-mod-tidy generate
-	$(GOCYCLO) -over $(GOCYCLO_OVER) -avg .
 
 # lint
 
 .PHONY: lint-help
 lint-help:
-	@echo "lint: lint all files"
+	@echo 'lint: runs all linters'
 help: lint-help
+
 .PHONY: lint
-lint: goimports go-mod-tidy golangci-lint gocyclo
+lint:
+
+# Generate
+
+.PHONY: go-generate
+go-generate:
+	$(GO) generate ./...
+
+# goimports
+
+.PHONY: install-deps-goimports
+install-deps-goimports:
+	GOBIN=$(BINDIR) $(GO) install golang.org/x/tools/cmd/goimports@v$(GOIMPORTS_VERSION)
+install-deps: install-deps-goimports
+
+.PHONY: uninstall-deps-goimports
+uninstall-deps-goimports:
+	rm -f $(BINDIR)/goimports
+uninstall-deps: uninstall-deps-goimports
+
+.PHONY: goimports
+goimports:
+	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) .
+lint: goimports
+
+# go mod tidy
+
+.PHONY: go-mod-tidy
+go-mod-tidy: go-generate goimports
+	$(GO) mod tidy
+lint: go-mod-tidy
+
+# golangci-lint
+
+.PHONY: install-deps-golangci-lint
+install-deps-golangci-lint:
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(BINDIR) v$(GOLANGCI_LINT_VERSION)
+install-deps: install-deps-golangci-lint
+
+.PHONY: uninstall-deps-golangci-lint
+uninstall-deps-golangci-lint:
+	rm -f $(BINDIR)/golangci-lint
+uninstall-deps: uninstall-deps-golangci-lint
+
+.PHONY: golangci-lint
+golangci-lint: go-mod-tidy go-generate
+	$(GOLANGCI_LINT) run $(GOLANGCI_LINT_ARGS)
+lint: golangci-lint
+
+.PHONY: clean-golangci-lint
+clean-golangci-lint:
+	$(GOLANGCI_LINT) cache clean
+clean: clean-golangci-lint
+
+# go vet
+
+.PHONY: go-vet
+go-vet: go-mod-tidy go-generate
+	$(GO) vet ./...
+lint: go-vet
 
 ##
-## test
+## Test
 ##
+
+# test
 
 .PHONY: test-help
 test-help:
 	@echo 'test: runs all tests'
 help: test-help
+
 .PHONY: test
-test: generate
+test:
+
+# gotest
+
+.PHONY: install-deps-gotest
+install-deps-gotest:
+	GOBIN=$(BINDIR) $(GO) install github.com/rakyll/gotest@$(GOTEST_VERSION)
+install-deps: install-deps-gotest
+
+.PHONY: uninstall-deps-gotest
+uninstall-deps-gotest:
+	rm -f $(BINDIR)/gotest
+uninstall-deps: uninstall-deps-gotest
+
+.PHONY: test
+gotest: go-generate
 	$(GO_TEST) ./... $(GO_TEST_FLAGS)
-.PHONY: clean-test
-clean-test:
+test: gotest
+
+.PHONY: clean-gotest
+clean-gotest:
 	$(GO) clean -r -testcache
-clean: clean-test
+clean: clean-gotest
 
 ##
-## build
+## Build
 ##
-
-# build
 
 .PHONY: build-help
 build-help:
-	@echo 'build: builds everything'
+	@echo 'build: build everything'
 help: build-help
+
 .PHONY: build
-build: generate
-	$(GO) build
+build: go-generate
+	$(GO) build ./...
+
 .PHONY: clean-build
 clean-build:
-	$(GO) clean -r -cache -modcache
+	$(GO) clean -r -cache -modcache ./...
 clean: clean-build
-
-##
-## clean
-##
-
-# clean
-.PHONY: clean
-clean:
