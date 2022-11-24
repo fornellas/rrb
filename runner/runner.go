@@ -2,13 +2,14 @@ package runner
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/alessio/shellescape"
 	"github.com/williammartin/subreaper"
@@ -87,7 +88,7 @@ func waitChildren(waitChildrenErrCh chan error) {
 		if wpid == -1 {
 			break
 		}
-		log.Printf("Child %d %s", wpid, waitStatusStr(waitStatus))
+		logrus.Infof("Child %d %s", wpid, waitStatusStr(waitStatus))
 	}
 	waitChildrenErrCh <- err
 }
@@ -105,8 +106,7 @@ func (r *Runner) syncWaitAndKill(waitChildrenErrCh chan error) error {
 			}
 
 			for _, childProcess := range selfProcess.Children {
-				// fmt.Printf("%s", childProcess.SprintTree(0))
-				log.Printf("Sending SIGKILL to %s...", childProcess)
+				logrus.Warnf("Sending SIGKILL to %s...", childProcess)
 				_ = childProcess.Signal(syscall.SIGKILL)
 			}
 
@@ -130,36 +130,34 @@ func (r *Runner) killChildren() error {
 
 	go waitChildren(waitChildrenErrCh)
 
-	log.Printf("Orphan process left behind!")
 	for _, childProcess := range selfProcess.Children {
-		// fmt.Printf("%s", childProcess.SprintTree(0))
 		// FIXME send to process group
-		log.Printf("Sending SIGTERM to %s...", childProcess)
+		logrus.Infof("Sending SIGTERM to %s...", childProcess)
 		_ = childProcess.Signal(syscall.SIGTERM)
 	}
 
 	err = r.syncWaitAndKill(waitChildrenErrCh)
 	if err != nil {
-		log.Printf("wait error: %s", err)
+		logrus.Error(err)
 	}
 
-	return fmt.Errorf("orphan process behind")
+	return fmt.Errorf("Orphan process behind!")
 }
 
 func (r *Runner) waitAll() {
 	_ = r.cmd.Wait()
 
 	if r.cmd.ProcessState.Success() {
-		log.Printf("Success: %s", r.cmd.ProcessState)
+		logrus.Infof("Success: %s", r.cmd.ProcessState)
 	} else {
-		log.Printf("Failure: %s", r.cmd.ProcessState)
+		logrus.Errorf("Failure: %s", r.cmd.ProcessState)
 	}
 
 	if err := r.killChildren(); err != nil {
 		if r.cmd.ProcessState.Success() {
-			log.Printf("Failure: %s", err)
+			logrus.Error(err)
 		} else {
-			log.Printf("Warning: %s", err)
+			logrus.Warn(err)
 		}
 	}
 
@@ -187,7 +185,7 @@ func (r *Runner) Run() error {
 	case <-r.idleCn:
 		break
 	default:
-		log.Printf("Killing...")
+		logrus.Warn("Killing...")
 		r.killCn <- struct{}{}
 		<-r.idleCn
 	}
@@ -207,7 +205,7 @@ func (r *Runner) Run() error {
 	r.cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setsid: true,
 	}
-	log.Printf("> %s", r.cmdStr)
+	logrus.Infof("> %s", r.cmdStr)
 	if err := r.cmd.Start(); err != nil {
 		r.idleCn <- struct{}{}
 		return err

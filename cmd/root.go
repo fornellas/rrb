@@ -1,12 +1,15 @@
 package cmd
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/fornellas/rrb/log"
 	"github.com/fornellas/rrb/runner"
 	"github.com/fornellas/rrb/watcher"
 )
@@ -20,7 +23,7 @@ var RootCmd = &cobra.Command{
 		"command again.",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
-			log.Fatal("Missing build command.")
+			logrus.Fatal("Missing build command.")
 			os.Exit(1)
 		}
 
@@ -31,7 +34,7 @@ var RootCmd = &cobra.Command{
 			DebounceDuration: debounce,
 		})
 		if err != nil {
-			log.Fatalf("NewWatcher: %s", err.Error())
+			logrus.Fatalf("NewWatcher: %s", err.Error())
 		}
 		defer w.Close()
 
@@ -41,10 +44,10 @@ var RootCmd = &cobra.Command{
 			select {
 			case <-w.ChangedFilesCn:
 				if err := r.Run(); err != nil {
-					log.Printf("Error: %s", err)
+					logrus.Fatal(err)
 				}
 			case err := <-w.ErrorsCn:
-				log.Fatalf("Watcher: %s", err)
+				logrus.Fatal(err)
 			}
 		}
 	},
@@ -55,13 +58,16 @@ var patterns []string
 var ignorePatterns []string
 var debounce time.Duration
 var killWait time.Duration
+var logLevel string
 
-// func cobraInit(
-// // TODO setup log
-// )
+func cobraInit() {
+	if err := log.Setup(logLevel); err != nil {
+		fmt.Fprintf(os.Stderr, "%s", err)
+	}
+}
 
 func init() {
-	// cobra.OnInitialize(cobraInit)
+	cobra.OnInitialize(cobraInit)
 	RootCmd.Flags().StringVarP(
 		&directory, "directory", "d", ".",
 		"Root directory where to watch for file changes",
@@ -85,5 +91,9 @@ func init() {
 	RootCmd.Flags().DurationVarP(
 		&killWait, "kill-wait", "w", time.Second,
 		"Seconds to wait after SIGTERM before sending SIGKILL",
+	)
+	RootCmd.Flags().StringVarP(
+		&logLevel, "log-level", "l", "info",
+		"Logging level",
 	)
 }

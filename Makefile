@@ -192,7 +192,7 @@ help: build-help
 
 .PHONY: build
 build: go-generate
-	$(GO) build ./...
+	$(GO) build .
 
 .PHONY: clean-build
 clean-build:

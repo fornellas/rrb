@@ -4,12 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
 	"math"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fsnotify/fsnotify"
@@ -60,7 +61,7 @@ func NewWatcher(cfg Config) (*Watcher, error) {
 
 	if err = w.addRecursively(w.Config.RootPath); err != nil {
 		if closeErr := w.fsnWatcher.Close(); closeErr != nil {
-			log.Printf("Watcher.Close(): %s", closeErr.Error())
+			logrus.Errorf("Watcher.Close(): %s", closeErr.Error())
 		}
 		return nil, err
 	}
@@ -77,7 +78,7 @@ func (w *Watcher) addRecursively(path string) error {
 			if path == w.Config.RootPath {
 				return fmt.Errorf("failed to list root directory: %s", err)
 			}
-			log.Printf("failed to list: %s", err)
+			logrus.Debugf("failed to list: %s", err)
 			return nil
 		}
 
@@ -89,9 +90,9 @@ func (w *Watcher) addRecursively(path string) error {
 			if path == w.Config.RootPath {
 				return fmt.Errorf("failed to watch root %s: %s", path, err)
 			}
-			log.Printf("failed to watch %s: %s", path, err)
+			logrus.Errorf("failed to watch %s: %s", path, err)
 		}
-		// log.Printf("watching: %s", path)
+		logrus.Debugf("watching: %s", path)
 
 		return nil
 	}); err != nil {
@@ -137,15 +138,13 @@ func (w *Watcher) processEvent(
 	lastChangedTime *time.Time,
 	debounceWait *time.Duration,
 ) {
-	// log.Println("event:", event)
+	logrus.Tracef("event: %v", event)
 
 	addRecursively, err := isNewDirectory(event)
 	if err != nil {
-		// log.Println("error:", err)
 		w.ErrorsCn <- err
 	} else if addRecursively {
 		if err := w.addRecursively(event.Name); err != nil {
-			// log.Println("error:", err)
 			w.ErrorsCn <- err
 		}
 	}
@@ -155,7 +154,7 @@ func (w *Watcher) processEvent(
 		panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", event.Name, err))
 	}
 	if !match {
-		// log.Println("not a match")
+		logrus.Debugf("not a match: %s", event.Name)
 		return
 	}
 
@@ -164,23 +163,22 @@ func (w *Watcher) processEvent(
 		panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", event.Name, err))
 	}
 	if match {
-		// log.Println("ignoring")
+		logrus.Debugf("ignoring: %s", event.Name)
 		return
 	}
 
-	log.Printf("Changed: %s (%s)", event.Name, event.Op)
+	logrus.Infof("Changed: %s (%s)", event.Name, event.Op)
 	now := time.Now()
 	if lastChangedTime.IsZero() {
-		// log.Println("first event, debouncing")
+		logrus.Trace("first event received, waiting to debounce")
 		*debounceWait = w.Config.DebounceDuration
 	} else {
 		if now.Sub(*lastChangedTime) > w.Config.DebounceDuration {
-			// log.Println("delay elapsed")
-			// log.Println(">>>> BUILD <<<<")
+			logrus.Trace("debounced, sending change event")
 			w.ChangedFilesCn <- struct{}{}
 			*debounceWait = forever
 		} else {
-			// log.Println("change too short, waiting for delay")
+			logrus.Trace("change was too fast, debouncing")
 			*debounceWait = w.Config.DebounceDuration
 		}
 	}
@@ -199,8 +197,6 @@ func (w *Watcher) watch() {
 			}
 			w.processEvent(event, &lastChangedTime, &debounceWait)
 		case <-time.After(debounceWait):
-			// log.Println("debounced")
-			// log.Println(">>>> BUILD <<<<")
 			w.ChangedFilesCn <- struct{}{}
 			debounceWait = forever
 			lastChangedTime = time.Time{}
@@ -208,14 +204,12 @@ func (w *Watcher) watch() {
 			if !ok { // Channel was closed (i.e. Watcher.Close() was called).
 				return
 			}
-			log.Println("error:", err)
 			w.ErrorsCn <- err
 		}
 	}
 }
 
 func (w *Watcher) Close() error {
-	log.Println("Close()")
 	// TODO cancellation context for watch
 	return w.fsnWatcher.Close()
 }
