@@ -143,7 +143,7 @@ func (r *Runner) killChildren() error {
 		log.Printf("wait error: %s", err)
 	}
 
-	return fmt.Errorf("Orphan process behind")
+	return fmt.Errorf("orphan process behind")
 }
 
 func (r *Runner) waitAll() {
