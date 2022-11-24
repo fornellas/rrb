@@ -14,9 +14,6 @@ GOLANGCI_LINT ?= golangci-lint
 GOLANGCI_LINT_VERSION ?= latest
 GOLANGCI_LINT_ARGS ?= --timeout 10m
 
-STATICCHECK ?= staticcheck
-STATICCHECK_VERSION ?= latest
-
 GO_TEST ?= gotest
 GOTEST_VERSION ?= latest
 GO_TEST_FLAGS ?= -v -race -cover -count=1
@@ -140,23 +137,6 @@ lint: golangci-lint
 clean-golangci-lint:
 	$(GOLANGCI_LINT) cache clean
 clean: clean-golangci-lint
-
-# staticcheck
-
-.PHONY: install-deps-staticcheck
-install-deps-staticcheck:
-	GOBIN=$(BINDIR) $(GO) install honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSION)
-install-deps: install-deps-staticcheck
-
-.PHONY: uninstall-deps-staticcheck
-uninstall-deps-staticcheck:
-	rm -f $(BINDIR)/staticcheck
-uninstall-deps: uninstall-deps-staticcheck
-
-.PHONY: staticcheck
-staticcheck: go-mod-tidy go-generate
-	$(STATICCHECK) ./...
-lint: staticcheck
 
 # go vet
 
