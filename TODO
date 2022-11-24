@@ -1,3 +1,4 @@
 - Proper logging
 - Catch SIGINT SIGHUP and send kill
 - --ignore-pattern from .gitignore files
+- tests

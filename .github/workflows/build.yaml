@@ -1,0 +1,60 @@
+name: build
+on:
+  - push
+  - pull_request
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: 'true'
+    - uses: actions/setup-go@v3
+      with:
+        go-version-file: go.mod
+    - name: Get GOCACHE path
+      id: get-gocache
+      run: |
+        set -e
+        echo "path=$(go env GOCACHE)" >> $GITHUB_OUTPUT
+      shell: bash
+    - name: Get GOMODCACHE path
+      id: get-gomodcache
+      run: |
+        set -e
+        echo "path=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+      shell: bash
+    - name: Go cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ${{ steps.get-gocache.outputs.path }}
+          ${{ steps.get-gomodcache.outputs.path }}
+        key: ${{ runner.os }}-go
+    - name: Install Dependencies
+      run: make install-deps
+    - name: Get golangci-lint cache path
+      id: get-golangci-lint-cache
+      run: |
+        set -e
+        set -o pipefail
+        echo "path=$(golangci-lint cache status | awk '/^Dir: /{print $2}')" >> $GITHUB_OUTPUT
+      shell: bash
+    - name: golangci-lint cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ${{ steps.get-golangci-lint-cache.outputs.path }}
+        key: ${{ runner.os }}-golangci-lint
+    - name: Lint
+      run: make lint
+    - name: Test
+      run: make test
+    - name: Build
+      run: make build
+    - name: Check Git Status
+      run: |-
+        GIT_STATUS="$(git status --porcelain)" && \
+          [ -n "$GIT_STATUS" ] && \
+          { echo Repository is not clean after build! ; echo git status ; echo "$GIT_STATUS" ; echo git diff ; git diff ; exit 1 ; } \
+          || true
