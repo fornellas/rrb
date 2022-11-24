@@ -2,17 +2,21 @@ BINDIR ?= /usr/local/bin
 
 GO ?= go
 
-GOIMPORTS_VERSION ?= 0.3.0
 GOIMPORTS ?= goimports
+GOIMPORTS_VERSION ?= latest
 GOIMPORTS_LOCAL ?= github.com/fornellas/
 
-GOLANGCI_LINT_VERSION ?= 1.50.1
+GOCYCLO ?= gocyclo
+GOCYCLO_VERSION = latest
+GOCYCLO_OVER ?= 10
+
 GOLANGCI_LINT ?= golangci-lint
+GOLANGCI_LINT_VERSION ?= latest
 GOLANGCI_LINT_ARGS ?= --timeout 10m
 
 GO_TEST ?= gotest
+GOTEST_VERSION ?= latest
 GO_TEST_FLAGS ?= -v -race -cover -count=1
-GOTEST_VERSION ?= v0.0.6
 
 ##
 ## Help
@@ -75,7 +79,7 @@ go-generate:
 
 .PHONY: install-deps-goimports
 install-deps-goimports:
-	GOBIN=$(BINDIR) $(GO) install golang.org/x/tools/cmd/goimports@v$(GOIMPORTS_VERSION)
+	GOBIN=$(BINDIR) $(GO) install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
 install-deps: install-deps-goimports
 
 .PHONY: uninstall-deps-goimports
@@ -95,11 +99,28 @@ go-mod-tidy: go-generate goimports
 	$(GO) mod tidy
 lint: go-mod-tidy
 
+# gocyclo
+
+.PHONY: install-deps-gocyclo
+install-deps-gocyclo:
+	GOBIN=$(BINDIR) $(GO) install github.com/fzipp/gocyclo/cmd/gocyclo@$(GOCYCLO_VERSION)
+install-deps: install-deps-gocyclo
+
+.PHONY: uninstall-deps-gocyclo
+uninstall-deps-gocyclo:
+	rm -f $(BINDIR)/gocyclo
+uninstall-deps: uninstall-deps-gocyclo
+
+.PHONY: gocyclo
+gocyclo: go-generate go-mod-tidy
+	$(GOCYCLO) -over $(GOCYCLO_OVER) -avg .
+lint: gocyclo
+
 # golangci-lint
 
 .PHONY: install-deps-golangci-lint
 install-deps-golangci-lint:
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(BINDIR) v$(GOLANGCI_LINT_VERSION)
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(BINDIR) $(GOLANGCI_LINT_VERSION)
 install-deps: install-deps-golangci-lint
 
 .PHONY: uninstall-deps-golangci-lint
