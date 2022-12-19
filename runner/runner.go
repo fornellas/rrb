@@ -164,20 +164,29 @@ func (r *Runner) waitAll() {
 	r.waitCn <- struct{}{}
 }
 
-func (r *Runner) sendIdle() {
+func (r *Runner) killAndSendIdle() {
 	select {
 	case <-r.waitCn:
 	case <-r.killCn:
-		_ = r.cmd.Process.Signal(syscall.SIGTERM)
-		select {
-		case <-r.waitCn:
-		case <-time.After(r.KillWait):
+		if r.cmd != nil {
 			_ = r.cmd.Process.Signal(syscall.SIGTERM)
-			<-r.waitCn
+			select {
+			case <-r.waitCn:
+			case <-time.After(r.KillWait):
+				_ = r.cmd.Process.Signal(syscall.SIGTERM)
+				<-r.waitCn
+			}
 		}
 	}
 
 	r.idleCn <- struct{}{}
+}
+
+func (r *Runner) Kill() {
+	go r.killAndSendIdle()
+	logrus.Warn("Killing...")
+	r.killCn <- struct{}{}
+	<-r.idleCn
 }
 
 func (r *Runner) Run() error {
@@ -212,7 +221,7 @@ func (r *Runner) Run() error {
 	}
 
 	go r.waitAll()
-	go r.sendIdle()
+	go r.killAndSendIdle()
 
 	return nil
 }

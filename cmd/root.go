@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -40,6 +42,9 @@ var RootCmd = &cobra.Command{
 
 		r := runner.NewRunner(killWait, args[0], args[1:]...)
 
+		sigCn := make(chan os.Signal, 1)
+		signal.Notify(sigCn, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+
 		for {
 			select {
 			case <-w.ChangedFilesCn:
@@ -48,6 +53,10 @@ var RootCmd = &cobra.Command{
 				}
 			case err := <-w.ErrorsCn:
 				logrus.Fatal(err)
+			case sig := <-sigCn:
+				logrus.Warnf("Signal %s received!", sig)
+				r.Kill()
+				logrus.Fatal("Exiting")
 			}
 		}
 	},
