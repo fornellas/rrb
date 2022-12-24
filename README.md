@@ -91,7 +91,19 @@ Success: exit status 0
 
 ## Install
 
+### Pre-built binary
+
+Check the [latest release](https://github.com/fornellas/rrb/releases) then:
+
+```shell
+curl -L https://github.com/fornellas/rrb/releases/download/${release}/rrb-linux-amd64 > rrb
+chmod 755 rrb
+./rrb -h
+```
+
+## Build
 
 ```shell
 go install github.com/fornellas/rrb@latest
+rrb -h
 ```
