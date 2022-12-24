@@ -30,7 +30,7 @@ jobs:
         path: |
           ${{ steps.get-gocache.outputs.path }}
           ${{ steps.get-gomodcache.outputs.path }}
-        key: ${{ runner.os }}-go
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
     - name: Install Dependencies
       run: make install-deps
     - name: Get golangci-lint cache path
@@ -45,7 +45,7 @@ jobs:
       with:
         path: |
           ${{ steps.get-golangci-lint-cache.outputs.path }}
-        key: ${{ runner.os }}-golangci-lint
+        key: ${{ runner.os }}-golangci-lint-${{ hashFiles('**/go.sum') }}-${{ hashFiles('Makefile') }}
     - name: Lint
       run: make lint
     - name: Test
