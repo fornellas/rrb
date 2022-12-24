@@ -58,3 +58,10 @@ jobs:
           [ -n "$GIT_STATUS" ] && \
           { echo Repository is not clean after build! ; echo git status ; echo "$GIT_STATUS" ; echo git diff ; git diff ; exit 1 ; } \
           || true
+    - name: Rename
+      run: mv rrb rrb-linux-amd64
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: rrb-linux-amd64
