@@ -11,15 +11,13 @@ function usage() {
 	exit 1
 }
 
-if [ $# != 1 ] ; then
+if [ $# -lt 1 ] ; then
 	usage
 fi
 if [ "$1"  == "-h" ] || [ "$1" == "--help"  ] ; then
 	usage
 fi
-TARGET="$1"
-TTY=""
-if [ "$TARGET" == shell ] ; then
+if [ "$1" == shell ] ; then
 	TTY=--tty
 fi
 
@@ -65,10 +63,4 @@ docker run \
 	--volume ${HOME}/rrb/.cache \
 	--workdir ${HOME}/rrb \
 	${DOCKER_IMAGE} \
-	/bin/bash -c "$(cat <<EOF
-set -e
-ln -s ${HOME}/rrb/.bashrc ${HOME}/.bashrc
-cd ${HOME}/rrb
-exec make --no-print-directory ${TARGET}
-EOF
-)"
+	make --no-print-directory "${@}"

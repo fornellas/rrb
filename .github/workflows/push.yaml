@@ -76,7 +76,7 @@ jobs:
       # Build
       - name: Build
         run: |
-          DOCKER_PLATFORM=${{ matrix.GOOS }}/${{ matrix.GOARCH }} ./build.sh ci
+          DOCKER_PLATFORM=${{ matrix.GOOS }}/${{ matrix.GOARCH }} ./build.sh ci GOOS=${{ matrix.GOOS }} GOARCH=${{ matrix.GOARCH }}
         shell: bash
       # Git Status
       - name: git status
