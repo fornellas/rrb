@@ -192,13 +192,19 @@ func (r *Runner) Kill() {
 }
 
 func (r *Runner) Run() error {
-	select {
-	case <-r.idleCn:
-		break
-	default:
-		logrus.Warn("Killing...")
-		r.killCn <- struct{}{}
-		<-r.idleCn
+idle:
+	for {
+		select {
+		case <-r.idleCn:
+			break idle
+		default:
+			if r.cmd != nil {
+				logrus.Warn("Killing...")
+				r.killCn <- struct{}{}
+				<-r.idleCn
+				break idle
+			}
+		}
 	}
 
 	// This ensures that orphan process will become children of the process
