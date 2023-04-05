@@ -1,5 +1,9 @@
-[![Build](https://github.com/fornellas/rrb/workflows/build/badge.svg?branch=main)](https://github.com/fornellas/rrb/actions?query=workflow%3Abuild+branch%3Amain)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://github.com/fornellas/rrb/pulls)
+[![Latest Release](https://img.shields.io/github/v/release/fornellas/rrb)](https://github.com/fornellas/rrb/releases)
+[![Push](https://github.com/fornellas/rrb/actions/workflows/push.yaml/badge.svg)](https://github.com/fornellas/rrb/actions/workflows/push.yaml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/fornellas/rrb)](https://goreportcard.com/report/github.com/fornellas/rrb)
+[![Go Reference](https://pkg.go.dev/badge/github.com/fornellas/rrb.svg)](https://pkg.go.dev/github.com/fornellas/rrb)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Buy me a beer: donate](https://img.shields.io/badge/Donate-Buy%20me%20a%20beer-yellow)](https://www.paypal.com/donate?hosted_button_id=AX26JVRT2GS2Q)
 
 # rrb
 
@@ -91,19 +95,21 @@ Success: exit status 0
 
 ## Install
 
-### Pre-built binary
+Pick the [latest release](https://github.com/fornellas/rrb/releases) with:
 
-Check the [latest release](https://github.com/fornellas/rrb/releases) then:
-
-```shell
-curl -L https://github.com/fornellas/rrb/releases/download/${release}/rrb-linux-amd64 > rrb
-chmod 755 rrb
-./rrb -h
+```bash
+GOARCH=$(case $(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64) echo arm64;; *) echo Unknown machine $(uname -m) 1>&2 ; exit 1 ;; esac) && wget -O- https://github.com/fornellas/rrb/releases/latest/download/rrb.linux.$GOARCH.gz | gunzip > rrb && chmod 755 rrb
+./rrb --help
 ```
 
-## Build
+## Development
 
-```shell
-go install github.com/fornellas/rrb@latest
-rrb -h
+[Docker](https://www.docker.com/) is used to create a reproducible development environment on any machine:
+
+```bash
+git clone git@github.com:fornellas/rrb.git
+cd rrb/
+./builld.sh
 ```
+
+Typically you'll want to stick to `./builld.sh rrb`, as it enables you to edit files as preferred, and the build will automatically be triggered on any file changes.
