@@ -8,4 +8,13 @@ on:
 concurrency: push
 jobs:
   build:
+    strategy:
+      matrix:
+        GOOS:
+          - linux
+        GOARCH:
+          - 386
+          - amd64
+          # - arm
+          # - arm64
     uses: ./.github/workflows/build.yaml

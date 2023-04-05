@@ -1,28 +1,28 @@
 name: build
 on:
   workflow_call:
+    inputs:
+      GOOS:
+        required: true
+        type: string
+      GOARCH:
+        required: true
+        type: string
 jobs:
   linux:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
-    strategy:
-      matrix:
-        GOARCH:
-          - 386
-          - amd64
-          - arm
-          - arm64
     env:
         GOOS: linux
-        GOARCH: ${{ matrix.GOARCH }}
+        GOARCH: ${{ inputs.GOARCH }}
     steps:
       # Checkout
       - name: Checkout
         uses: actions/checkout@v3
       # Architecture support
       - name: Architecture support
-        if: ${{ matrix.GOARCH != '386' && matrix.GOARCH != 'amd64' }}
+        if: ${{ inputs.GOARCH != '386' && inputs.GOARCH != 'amd64' }}
         run: |
           sudo apt-get -y install binfmt-support qemu-user-static
         shell: bash
@@ -31,12 +31,12 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ${{ github.workspace }}/.cache/
-          key: ${{ env.GOOS }}-${{ matrix.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
-          restore-keys: ${{ env.GOOS }}-${{ matrix.GOARCH }}-
+          key: ${{ inputs.GOOS }}-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
+          restore-keys: ${{ inputs.GOOS }}-${{ inputs.GOARCH }}-
       # Build
       - name: Build
         run: |
-          DOCKER_PLATFORM=${{ env.GOOS }}/${{ matrix.GOARCH }} ./build.sh ci GOOS=${{ env.GOOS }} GOARCH=${{ matrix.GOARCH }}
+          DOCKER_PLATFORM=${{ inputs.GOOS }}/${{ inputs.GOARCH }} ./build.sh ci GOOS=${{ inputs.GOOS }} GOARCH=${{ inputs.GOARCH }}
         shell: bash
       # Git Status
       - name: git status
