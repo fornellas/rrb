@@ -27,7 +27,7 @@ jobs:
         id: gomodcache
         run: |
           set -e
-          echo "path=$(./build.sh GOMODCACHE)" >> $GITHUB_OUTPUT
+          echo "path=$(DOCKER_PLATFORM=${{ matrix.GOOS}}/${{ matrix.GOARCH }} ./build.sh GOMODCACHE)" >> $GITHUB_OUTPUT
         shell: bash
       - name: Fetch GOMODCACHE cache
         uses: actions/cache@v3
@@ -40,7 +40,7 @@ jobs:
         id: gocache
         run: |
           set -e
-          echo "path=$(./build.sh GOCACHE)" >> $GITHUB_OUTPUT
+          echo "path=$(DOCKER_PLATFORM=${{ matrix.GOOS}}/${{ matrix.GOARCH }} ./build.sh GOCACHE)" >> $GITHUB_OUTPUT
         shell: bash
       - name: Fetch GOCACHE cache
         uses: actions/cache@v3
@@ -70,7 +70,7 @@ jobs:
       # Build
       - name: Build
         run: |
-          DOCKER_PLATFORM=${{ matrix.GOOS}}/${{ matrix.GOARCH }}./build.sh ci
+          DOCKER_PLATFORM=${{ matrix.GOOS}}/${{ matrix.GOARCH }} ./build.sh ci
         shell: bash
       # Git Status
       - name: git status

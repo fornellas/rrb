@@ -18,6 +18,10 @@ if [ "$1"  == "-h" ] || [ "$1" == "--help"  ] ; then
 	usage
 fi
 TARGET="$1"
+TTY=""
+if [ "$TARGET" == shell ] ; then
+	TTY=--tty
+fi
 
 if [ -z "$DOCKER_PLATFORM" ] ; then
 	DOCKER_PLATFORM="linux/$(docker system info --format '{{.Architecture}}')"
@@ -54,7 +58,7 @@ docker run \
 	--platform ${DOCKER_PLATFORM} \
 	--user "${UID}:${GID}" \
 	--rm \
-	--tty \
+	${TTY} \
 	--interactive \
 	--volume ${GIT_ROOT}:${HOME}/rrb \
 	--volume ${GIT_ROOT}/.cache:${HOME}/.cache \
