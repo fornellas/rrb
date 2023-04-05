@@ -9,12 +9,12 @@ on:
         required: true
         type: string
 jobs:
-  linux:
+  build:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
     env:
-        GOOS: linux
+        GOOS: ${{ inputs.GOOS }}
         GOARCH: ${{ inputs.GOARCH }}
     steps:
       # Checkout
