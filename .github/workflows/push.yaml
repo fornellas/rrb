@@ -10,8 +10,7 @@ jobs:
   linux_386:
     runs-on: ubuntu-22.04
     outputs:
-      artifact:
-        value: ${{ steps.build.outputs.artifact }}
+      artifact: ${{ steps.build.outputs.artifact }}
     steps:
       - uses: ./.github/actions/build
         with:
@@ -20,8 +19,7 @@ jobs:
   linux_amd64:
     runs-on: ubuntu-22.04
     outputs:
-      artifact:
-        value: ${{ steps.build.outputs.artifact }}
+      artifact: ${{ steps.build.outputs.artifact }}
     steps:
       - uses: ./.github/actions/build
         with:
@@ -30,8 +28,7 @@ jobs:
   linux_arm:
     runs-on: ubuntu-22.04
     outputs:
-      artifact:
-        value: ${{ steps.build.outputs.artifact }}
+      artifact: ${{ steps.build.outputs.artifact }}
     steps:
       - uses: ./.github/actions/build
         with:
@@ -40,8 +37,7 @@ jobs:
   linux_arm64:
     runs-on: ubuntu-22.04
     outputs:
-      artifact:
-        value: ${{ steps.build.outputs.artifact }}
+      artifact: ${{ steps.build.outputs.artifact }}
     steps:
       - uses: ./.github/actions/build
         id: build
