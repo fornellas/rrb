@@ -7,16 +7,19 @@ on:
       - "v*"
 concurrency: push
 jobs:
-  push:
+  linux:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
     strategy:
       matrix:
-        GOOS: [linux]
-        GOARCH: [386, amd64, arm, arm64]
+        GOARCH:
+          - 386
+          - amd64
+          - arm
+          - arm64
     env:
-        GOOS: ${{ matrix.GOOS }}
+        GOOS: linux
         GOARCH: ${{ matrix.GOARCH }}
     steps:
       # Checkout
