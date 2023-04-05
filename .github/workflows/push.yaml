@@ -28,6 +28,10 @@ jobs:
         run: |
           sudo apt-get -y install binfmt-support qemu-user-static
         shell: bash
+      # Cache image build
+      - name: Cache image build
+        run: DOCKER_PLATFORM=${{ matrix.GOOS }}/${{ matrix.GOARCH }} ./build.sh help
+        shell: bash
       # GOMODCACHE
       - name: Get GOMODCACHE path
         id: gomodcache
