@@ -16,9 +16,6 @@ runs:
       GOOS: ${{ inputs.GOOS }}
       GOARCH: ${{ inputs.GOARCH }}
   steps:
-    # Checkout
-    - name: Checkout
-      uses: actions/checkout@v3
     # Architecture support
     - name: Architecture support
       if: ${{ inputs.GOARCH != '386' && inputs.GOARCH != 'amd64' }}

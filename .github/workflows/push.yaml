@@ -12,6 +12,8 @@ jobs:
     outputs:
       artifact: ${{ steps.build.outputs.artifact }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
       - uses: ./.github/actions/build
         with:
           GOOS: linux
@@ -21,6 +23,8 @@ jobs:
     outputs:
       artifact: ${{ steps.build.outputs.artifact }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
       - uses: ./.github/actions/build
         with:
           GOOS: linux
@@ -30,6 +34,8 @@ jobs:
     outputs:
       artifact: ${{ steps.build.outputs.artifact }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
       - uses: ./.github/actions/build
         with:
           GOOS: linux
@@ -39,6 +45,8 @@ jobs:
     outputs:
       artifact: ${{ steps.build.outputs.artifact }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
       - uses: ./.github/actions/build
         id: build
         with:
