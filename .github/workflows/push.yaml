@@ -13,7 +13,7 @@ jobs:
       contents: write
     strategy:
       matrix:
-        GOARCH: [386 amd64 arm arm64]
+        GOARCH: [386, amd64, arm, arm64]
     steps:
       # Checkout
       - name: Checkout
