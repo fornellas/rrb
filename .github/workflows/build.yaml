@@ -1,0 +1,52 @@
+name: build
+on:
+  workflow_call:
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        GOARCH:
+          - 386
+          - amd64
+          - arm
+          - arm64
+    env:
+        GOOS: linux
+        GOARCH: ${{ matrix.GOARCH }}
+    steps:
+      # Checkout
+      - name: Checkout
+        uses: actions/checkout@v3
+      # Architecture support
+      - name: Architecture support
+        if: ${{ matrix.GOARCH != '386' && matrix.GOARCH != 'amd64' }}
+        run: |
+          sudo apt-get -y install binfmt-support qemu-user-static
+        shell: bash
+      # Cache
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/.cache/
+          key: ${{ env.GOOS }}-${{ matrix.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
+          restore-keys: ${{ env.GOOS }}-${{ matrix.GOARCH }}-
+      # Build
+      - name: Build
+        run: |
+          DOCKER_PLATFORM=${{ env.GOOS }}/${{ matrix.GOARCH }} ./build.sh ci GOOS=${{ env.GOOS }} GOARCH=${{ matrix.GOARCH }}
+        shell: bash
+      # Git Status
+      - name: git status
+        run: |
+          GIT_STATUS="$(git status --porcelain)"
+          if [ -n "$GIT_STATUS" ] ; then
+            echo git status
+            echo "$GIT_STATUS"
+            echo git diff
+            git diff
+            exit 1
+          fi
+        shell: bash
