@@ -18,3 +18,6 @@ jobs:
           # - arm
           # - arm64
     uses: ./.github/workflows/build.yaml
+    with:
+      GOOS: ${{ matrix.GOOS }}
+      GOARCH: ${{ matrix.GOARCH }}
