@@ -7,18 +7,8 @@ SHELL := /bin/bash
 
 XDG_CACHE_HOME ?= $(HOME)/.cache
 CACHE_DIR ?= $(XDG_CACHE_HOME)/rrb/build-cache
-BINDIR := $(CACHE_DIR)/bin
-BINDIR := $(BINDIR)
-.PHONY: BINDIR
-BINDIR:
-	@echo $(BINDIR)
-PATH := $(BINDIR):$(PATH)
 
 GO := go
-export GOBIN := $(BINDIR)
-.PHONY: GOBIN
-GOBIN:
-	@echo $(GOBIN)
 export GOCACHE := $(CACHE_DIR)/go-build
 .PHONY: GOCACHE
 GOCACHE:
@@ -36,6 +26,7 @@ ifneq ($(.SHELLSTATUS),0)
   $(error shell command failed! output was $(var))
 endif
 GO_BUILD_FLAGS :=
+GOARCHS_BUILD := 386 amd64 arm arm64
 
 GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
 GOIMPORTS_LOCAL := github.com/fornellas/rrb/
@@ -55,7 +46,8 @@ endif
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
 RRB_LOG_LEVEL ?= info
-RRB_PATTERN ?= '**/*.{go}'
+RRB_IGNORE_PATTERN ?= '.cache/**/*'
+RRB_PATTERN ?= '**/*.{go},Makefile'
 RRB_EXTRA_CMD ?= true
 
 ##
@@ -74,30 +66,6 @@ clean:
 clean-help:
 	@echo 'clean: clean all files'
 help: clean-help
-
-
-##
-## Install Deps
-##
-
-.PHONY: install-deps-help
-install-deps-help:
-	@echo 'install-deps: install dependencies required by the build at BINDIR=$(BINDIR)'
-help: install-deps-help
-
-$(BINDIR):
-	@mkdir -p $(BINDIR)
-
-.PHONY: install-deps
-install-deps:
-
-.PHONY: uninstall-deps-help
-uninstall-deps-help:
-	@echo 'uninstall-deps: uninstall dependencies required by the build'
-help: uninstall-deps-help
-
-.PHONY: uninstall-deps
-uninstall-deps:
 
 ##
 ## Lint
@@ -233,15 +201,20 @@ build-help:
 	@echo 'build: build everything'
 help: build-help
 
+.PHONY: build-goarchs
+build-goarchs:
+	@echo $(foreach GOARCH,$(GOARCHS_BUILD),$(GOARCH))
+
 .PHONY: build
 build: go-generate
-	$(GO) build $(GO_BUILD_FLAGS) .
+	$(GO) build -o rrb.$(GOOS).$(GOARCH) $(GO_BUILD_FLAGS) .
 
 .PHONY: clean-build
 clean-build:
 	$(GO) clean -r -cache -modcache
-	rm -f rrb
-clean: clean-build
+	rm -f version/.version
+	rm -f rrb.*.*
+clean:
 
 ##
 ## ci
@@ -252,11 +225,8 @@ ci-help:
 	@echo 'ci: runs the whole build'
 help: ci-help
 
-.PHONY: ci-no-install-deps
-ci-no-install-deps: lint test build
-
 .PHONY: ci
-ci: install-deps ci-no-install-deps
+ci: lint test build
 
 ##
 ## rrb
@@ -267,21 +237,12 @@ rrb-help:
 	@echo 'rrb: rerun build automatically on file changes then runs RRB_EXTRA_CMD'
 help: rrb-help
 
-.PHONY: rrb-ci-no-install-deps
-rrb-ci-no-install-deps:
-	$(RRB) \
-		--debounce $(RRB_DEBOUNCE) \
-		--ignore-pattern '.cache/**/*' \
-		--log-level $(RRB_LOG_LEVEL) \
-		--pattern $(RRB_PATTERN) \
-		-- \
-		sh -c "$(MAKE) $(MFLAGS) ci-no-install-deps && $(RRB_EXTRA_CMD)"
-
 .PHONY: rrb
 rrb:
 	$(RRB) \
 		--debounce $(RRB_DEBOUNCE) \
+		--ignore-pattern $(RRB_IGNORE_PATTERN) \
 		--log-level $(RRB_LOG_LEVEL) \
-		--pattern Makefile \
+		--pattern $(RRB_PATTERN) \
 		-- \
-		$(MAKE) $(MFLAGS) install-deps rrb-ci-no-install-deps
+		sh -c "$(MAKE) $(MFLAGS) ci && $(RRB_EXTRA_CMD)"
