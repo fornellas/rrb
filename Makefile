@@ -311,7 +311,7 @@ rrb-help:
 help: rrb-help
 
 .PHONY: rrb
-rrb:
+rrb: go
 	$(RRB) \
 		--debounce $(RRB_DEBOUNCE) \
 		--ignore-pattern $(RRB_IGNORE_PATTERN) \
