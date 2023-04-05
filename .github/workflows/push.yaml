@@ -13,7 +13,11 @@ jobs:
       contents: write
     strategy:
       matrix:
+        GOOS: [linux]
         GOARCH: [386, amd64, arm, arm64]
+    env:
+        GOOS: ${{ matrix.GOOS }}
+        GOARCH: ${{ matrix.GOARCH }}
     steps:
       # Checkout
       - name: Checkout
@@ -34,7 +38,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ${{ steps.gomodcache.outputs.path }}
-          key: ${{ runner.os }}-gomodcache-${{ hashFiles('**/go.sum') }}
+          key: gomodcache-${{ matrix.GOOS }}-${{ matrix.GOARCH }}-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-gomodcache-
       # GOCACHE
       - name: Get GOCACHE path
@@ -47,7 +51,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ${{ steps.gocache.outputs.path }}
-          key: ${{ runner.os }}-gocache-${{ hashFiles('**/go.sum', '**/*.go') }}
+          key: gocache-${{ matrix.GOOS }}-${{ matrix.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
           restore-keys: ${{ runner.os }}-gocache-
       # staticcheck
       - name: Get staticcheck cache path
@@ -66,11 +70,11 @@ jobs:
         with:
           path: |
             ${{ steps.staticcheck.outputs.path }}
-          key: ${{ runner.os }}-staticcheck-${{ hashFiles('**/go.sum', '**/*.go') }}
+          key: staticcheck-${{ matrix.GOOS }}-${{ matrix.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
           restore-keys: ${{ runner.os }}-staticcheck-
       # Build
       - name: Build
-        run: GOARCH=${{ matrix.GOARCH }} make ci
+        run: make ci && ls
         shell: bash
       # Git Status
       - name: git status
