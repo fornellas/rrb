@@ -8,4 +8,4 @@ on:
 concurrency: push
 jobs:
   build:
-    uses: ./.github/workflows/build.yml
+    uses: ./.github/workflows/build.yaml
