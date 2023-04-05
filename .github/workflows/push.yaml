@@ -22,12 +22,18 @@ jobs:
       # Checkout
       - name: Checkout
         uses: actions/checkout@v3
+      # Architecture support
+      - name: Architecture support
+        if: ${{ ${{ matrix.GOARCH }} != '386' || ${{ matrix.GOARCH }} != 'amd64' }}
+        run: |
+          apt-get -y install binfmt-support qemu-user-static
+        shell: bash
       # GOMODCACHE
       - name: Get GOMODCACHE path
         id: gomodcache
         run: |
           set -e
-          echo "path=$(DOCKER_PLATFORM=${{ matrix.GOOS}}/${{ matrix.GOARCH }} ./build.sh GOMODCACHE)" >> $GITHUB_OUTPUT
+          echo "path=$(DOCKER_PLATFORM=${{ matrix.GOOS }}/${{ matrix.GOARCH }} ./build.sh GOMODCACHE)" >> $GITHUB_OUTPUT
         shell: bash
       - name: Fetch GOMODCACHE cache
         uses: actions/cache@v3
@@ -40,7 +46,7 @@ jobs:
         id: gocache
         run: |
           set -e
-          echo "path=$(DOCKER_PLATFORM=${{ matrix.GOOS}}/${{ matrix.GOARCH }} ./build.sh GOCACHE)" >> $GITHUB_OUTPUT
+          echo "path=$(DOCKER_PLATFORM=${{ matrix.GOOS }}/${{ matrix.GOARCH }} ./build.sh GOCACHE)" >> $GITHUB_OUTPUT
         shell: bash
       - name: Fetch GOCACHE cache
         uses: actions/cache@v3
@@ -70,7 +76,7 @@ jobs:
       # Build
       - name: Build
         run: |
-          DOCKER_PLATFORM=${{ matrix.GOOS}}/${{ matrix.GOARCH }} ./build.sh ci
+          DOCKER_PLATFORM=${{ matrix.GOOS }}/${{ matrix.GOARCH }} ./build.sh ci
         shell: bash
       # Git Status
       - name: git status
