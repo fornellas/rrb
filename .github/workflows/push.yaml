@@ -8,25 +8,46 @@ on:
 concurrency: push
 jobs:
   linux_386:
-    uses: ./.github/workflows/build.yaml
-    with:
-      GOOS: linux
-      GOARCH: 386
+    runs-on: ubuntu-22.04
+    outputs:
+      artifact:
+        value: ${{ steps.build.outputs.artifact }}
+    steps:
+      - uses: ./.github/actions/build
+        with:
+          GOOS: linux
+          GOARCH: 386
   linux_amd64:
-    uses: ./.github/workflows/build.yaml
-    with:
-      GOOS: linux
-      GOARCH: amd64
+    runs-on: ubuntu-22.04
+    outputs:
+      artifact:
+        value: ${{ steps.build.outputs.artifact }}
+    steps:
+      - uses: ./.github/actions/build
+        with:
+          GOOS: linux
+          GOARCH: amd64
   linux_arm:
-    uses: ./.github/workflows/build.yaml
-    with:
-      GOOS: linux
-      GOARCH: arm
+    runs-on: ubuntu-22.04
+    outputs:
+      artifact:
+        value: ${{ steps.build.outputs.artifact }}
+    steps:
+      - uses: ./.github/actions/build
+        with:
+          GOOS: linux
+          GOARCH: arm
   linux_arm64:
-    uses: ./.github/workflows/build.yaml
-    with:
-      GOOS: linux
-      GOARCH: arm64
+    runs-on: ubuntu-22.04
+    outputs:
+      artifact:
+        value: ${{ steps.build.outputs.artifact }}
+    steps:
+      - uses: ./.github/actions/build
+        id: build
+        with:
+          GOOS: linux
+          GOARCH: arm64
   release:
     runs-on: ubuntu-latest
     permissions:
