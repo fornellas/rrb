@@ -17,8 +17,9 @@ fi
 if [ "$1"  == "-h" ] || [ "$1" == "--help"  ] ; then
 	usage
 fi
-if [ "$1" == shell ] ; then
-	TTY=--tty
+TTY=""
+if [ -t 0 ]; then
+	TTY="--tty"
 fi
 
 if [ -z "$DOCKER_PLATFORM" ] ; then
