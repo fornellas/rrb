@@ -43,7 +43,9 @@ func NewRunner(killWait time.Duration, name string, args ...string) *Runner {
 		waitCn:   make(chan struct{}),
 		killCn:   make(chan struct{}),
 	}
-	go func() { r.idleCn <- struct{}{} }()
+	go func() {
+		r.idleCn <- struct{}{}
+	}()
 	return &r
 }
 
@@ -141,7 +143,7 @@ func (r *Runner) killChildren() error {
 		logrus.Error(err)
 	}
 
-	return fmt.Errorf("Orphan process behind!")
+	return fmt.Errorf("orphan process behind")
 }
 
 func (r *Runner) waitAll() {

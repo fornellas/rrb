@@ -1,22 +1,62 @@
-BINDIR ?= /usr/local/bin
+help:
 
-GO ?= go
+MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 
-GOIMPORTS ?= goimports
-GOIMPORTS_VERSION ?= latest
-GOIMPORTS_LOCAL ?= github.com/fornellas/
+SHELL := /bin/bash
+.ONESHELL:
 
-GOCYCLO ?= gocyclo
-GOCYCLO_VERSION = latest
-GOCYCLO_OVER ?= 10
+XDG_CACHE_HOME ?= $(HOME)/.cache
+CACHE_DIR ?= $(XDG_CACHE_HOME)/rrb/build-cache
+BINDIR := $(CACHE_DIR)/bin
+BINDIR := $(BINDIR)
+.PHONY: BINDIR
+BINDIR:
+	@echo $(BINDIR)
+PATH := $(BINDIR):$(PATH)
 
-GOLANGCI_LINT ?= golangci-lint
-GOLANGCI_LINT_VERSION ?= latest
-GOLANGCI_LINT_ARGS ?= --timeout 10m
+GO := go
+export GOBIN := $(BINDIR)
+.PHONY: GOBIN
+GOBIN:
+	@echo $(GOBIN)
+export GOCACHE := $(CACHE_DIR)/go-build
+.PHONY: GOCACHE
+GOCACHE:
+	@echo $(GOCACHE)
+export GOMODCACHE := $(CACHE_DIR)/go-mod
+.PHONY: GOMODCACHE
+GOMODCACHE:
+	@echo $(GOMODCACHE)
+GOARCH := $(shell go env GOARCH)
+ifneq ($(.SHELLSTATUS),0)
+  $(error shell command failed! output was $(var))
+endif
+GOOS := $(shell go env GOOS)
+ifneq ($(.SHELLSTATUS),0)
+  $(error shell command failed! output was $(var))
+endif
+GO_BUILD_FLAGS :=
 
-GO_TEST ?= gotest
-GOTEST_VERSION ?= latest
-GO_TEST_FLAGS ?= -v -race -cover -count=1
+GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
+GOIMPORTS_LOCAL := github.com/fornellas/rrb/
+
+STATICCHECK := $(GO) run honnef.co/go/tools/cmd/staticcheck
+STATICCHECK_CACHE := $(CACHE_DIR)/staticcheck
+
+GOCYCLO := $(GO) run github.com/fzipp/gocyclo/cmd/gocyclo
+GOCYCLO_OVER := 15
+
+GO_TEST := $(GO) run github.com/rakyll/gotest ./...
+GO_TEST_FLAGS := -race -coverprofile cover.txt -coverpkg ./... -count=1 -failfast
+ifeq ($(V),1)
+GO_TEST_FLAGS := -v $(GO_TEST_FLAGS)
+endif
+
+RRB := $(GO) run github.com/fornellas/rrb
+RRB_DEBOUNCE ?= 500ms
+RRB_LOG_LEVEL ?= info
+RRB_PATTERN ?= '**/*.{go}'
+RRB_EXTRA_CMD ?= true
 
 ##
 ## Help
@@ -35,6 +75,7 @@ clean-help:
 	@echo 'clean: clean all files'
 help: clean-help
 
+
 ##
 ## Install Deps
 ##
@@ -43,6 +84,9 @@ help: clean-help
 install-deps-help:
 	@echo 'install-deps: install dependencies required by the build at BINDIR=$(BINDIR)'
 help: install-deps-help
+
+$(BINDIR):
+	@mkdir -p $(BINDIR)
 
 .PHONY: install-deps
 install-deps:
@@ -75,68 +119,50 @@ lint:
 go-generate:
 	$(GO) generate ./...
 
-# goimports
-
-.PHONY: install-deps-goimports
-install-deps-goimports:
-	GOBIN=$(BINDIR) $(GO) install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
-install-deps: install-deps-goimports
-
-.PHONY: uninstall-deps-goimports
-uninstall-deps-goimports:
-	rm -f $(BINDIR)/goimports
-uninstall-deps: uninstall-deps-goimports
-
-.PHONY: goimports
-goimports:
-	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) .
-lint: goimports
-
 # go mod tidy
 
 .PHONY: go-mod-tidy
-go-mod-tidy: go-generate goimports
+go-mod-tidy: go-generate
 	$(GO) mod tidy
 lint: go-mod-tidy
 
+# goimports
+
+.PHONY: goimports
+goimports: go-mod-tidy
+	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) $$(find . -name \*.go ! -path './.cache/*')
+lint: goimports
+
+# staticcheck
+
+.PHONY: staticcheck
+staticcheck: go-mod-tidy go-generate goimports
+	$(STATICCHECK) ./...
+lint: staticcheck
+
+.PHONY: clean-staticcheck
+clean-staticcheck:
+	rm -rf $(HOME)/.cache/staticcheck/
+clean: clean-staticcheck
+
+# misspell
+
+.PHONY: misspell
+misspell: go-mod-tidy go-generate
+	$(GO) run github.com/client9/misspell/cmd/misspell -error .
+lint: misspell
+
+.PHONY: clean-misspell
+clean-misspell:
+	rm -rf $(HOME)/.cache/misspell/
+clean: clean-misspell
+
 # gocyclo
-
-.PHONY: install-deps-gocyclo
-install-deps-gocyclo:
-	GOBIN=$(BINDIR) $(GO) install github.com/fzipp/gocyclo/cmd/gocyclo@$(GOCYCLO_VERSION)
-install-deps: install-deps-gocyclo
-
-.PHONY: uninstall-deps-gocyclo
-uninstall-deps-gocyclo:
-	rm -f $(BINDIR)/gocyclo
-uninstall-deps: uninstall-deps-gocyclo
 
 .PHONY: gocyclo
 gocyclo: go-generate go-mod-tidy
 	$(GOCYCLO) -over $(GOCYCLO_OVER) -avg .
 lint: gocyclo
-
-# golangci-lint
-
-.PHONY: install-deps-golangci-lint
-install-deps-golangci-lint:
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(BINDIR) $(GOLANGCI_LINT_VERSION)
-install-deps: install-deps-golangci-lint
-
-.PHONY: uninstall-deps-golangci-lint
-uninstall-deps-golangci-lint:
-	rm -f $(BINDIR)/golangci-lint
-uninstall-deps: uninstall-deps-golangci-lint
-
-.PHONY: golangci-lint
-golangci-lint: go-mod-tidy go-generate
-	$(GOLANGCI_LINT) run $(GOLANGCI_LINT_ARGS)
-lint: golangci-lint
-
-.PHONY: clean-golangci-lint
-clean-golangci-lint:
-	$(GOLANGCI_LINT) cache clean
-clean: clean-golangci-lint
 
 # go vet
 
@@ -144,6 +170,12 @@ clean: clean-golangci-lint
 go-vet: go-mod-tidy go-generate
 	$(GO) vet ./...
 lint: go-vet
+
+# go get -u
+
+.PHONY: go-get-u
+go-get-u: go-mod-tidy
+	$(GO) get -u ./...
 
 ##
 ## Test
@@ -153,7 +185,7 @@ lint: go-vet
 
 .PHONY: test-help
 test-help:
-	@echo 'test: runs all tests'
+	@echo 'test: runs all tests; use V=1 for verbose'
 help: test-help
 
 .PHONY: test
@@ -161,25 +193,36 @@ test:
 
 # gotest
 
-.PHONY: install-deps-gotest
-install-deps-gotest:
-	GOBIN=$(BINDIR) $(GO) install github.com/rakyll/gotest@$(GOTEST_VERSION)
-install-deps: install-deps-gotest
-
-.PHONY: uninstall-deps-gotest
-uninstall-deps-gotest:
-	rm -f $(BINDIR)/gotest
-uninstall-deps: uninstall-deps-gotest
-
-.PHONY: test
+.PHONY: gotest
 gotest: go-generate
-	$(GO_TEST) ./... $(GO_TEST_FLAGS)
+	$(GO_TEST) $(GO_TEST_FLAGS) $(GO_BUILD_FLAGS)
 test: gotest
 
 .PHONY: clean-gotest
 clean-gotest:
 	$(GO) clean -r -testcache
+	rm -f cover.txt cover.html
 clean: clean-gotest
+
+# cover.html
+
+.PHONY: cover.html
+cover.html: gotest
+	$(GO) tool cover -html cover.txt -o cover.html
+test: cover.html
+
+.PHONY: clean-cover.html
+clean-cover.html:
+	rm -f cover.html
+clean: clean-cover.html
+
+# cover-func
+
+.PHONY: cover-func
+cover-func: cover.html
+	@echo -n "Coverage: "
+	@$(GO) tool cover -func cover.txt | awk '/^total:/{print $$NF}'
+test: cover-func
 
 ##
 ## Build
@@ -192,9 +235,53 @@ help: build-help
 
 .PHONY: build
 build: go-generate
-	$(GO) build .
+	$(GO) build $(GO_BUILD_FLAGS) .
 
 .PHONY: clean-build
 clean-build:
-	$(GO) clean -r -cache -modcache ./...
+	$(GO) clean -r -cache -modcache
+	rm -f rrb
 clean: clean-build
+
+##
+## ci
+##
+
+.PHONY: ci-help
+ci-help:
+	@echo 'ci: runs the whole build'
+help: ci-help
+
+.PHONY: ci-no-install-deps
+ci-no-install-deps: lint test build
+
+.PHONY: ci
+ci: install-deps ci-no-install-deps
+
+##
+## rrb
+##
+
+.PHONY: rrb-help
+rrb-help:
+	@echo 'rrb: rerun build automatically on file changes then runs RRB_EXTRA_CMD'
+help: rrb-help
+
+.PHONY: rrb-ci-no-install-deps
+rrb-ci-no-install-deps:
+	$(RRB) \
+		--debounce $(RRB_DEBOUNCE) \
+		--ignore-pattern '.cache/**/*' \
+		--log-level $(RRB_LOG_LEVEL) \
+		--pattern $(RRB_PATTERN) \
+		-- \
+		sh -c "$(MAKE) $(MFLAGS) ci-no-install-deps && $(RRB_EXTRA_CMD)"
+
+.PHONY: rrb
+rrb:
+	$(RRB) \
+		--debounce $(RRB_DEBOUNCE) \
+		--log-level $(RRB_LOG_LEVEL) \
+		--pattern Makefile \
+		-- \
+		$(MAKE) $(MFLAGS) install-deps rrb-ci-no-install-deps
