@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+set -e
+set -o pipefail
+
+function usage() {
+	echo "Usage: [DOCKER_PLATFORM=os/arch] $0 target"
+	echo "Runs the build in a predictable Docker environment."
+	echo "'target' is a build target (try 'help')."
+	echo "DOCKER_PLATFORM can optionally be set."
+	exit 1
+}
+
+if [ $# != 1 ] ; then
+	usage
+fi
+if [ "$1"  == "-h" ] || [ "$1" == "--help"  ] ; then
+	usage
+fi
+TARGET="$1"
+
+if [ -z "$DOCKER_PLATFORM" ] ; then
+	DOCKER_PLATFORM="linux/$(docker system info --format '{{.Architecture}}')"
+fi
+GID="$(id -g)"
+GROUP="$(getent group $(getent passwd $USER | cut -d: -f4) | cut -d: -f1)"
+
+GIT_ROOT="$(cd $(dirname $0) && git rev-parse --show-toplevel)"
+if ! test -d "$GIT_ROOT"/.cache ; then
+	mkdir "$GIT_ROOT"/.cache
+fi
+
+DOCKER_IMAGE="$(docker build \
+	--platform ${DOCKER_PLATFORM} \
+	--build-arg USER="$USER" \
+	--build-arg UID="$UID" \
+	--build-arg GROUP="$GROUP" \
+	--build-arg GID="$GID" \
+	--build-arg HOME="$HOME" \
+	--quiet \
+	.
+)"
+
+NAME="rrb-$$"
+
+function kill_container() {
+	docker kill --signal SIGKILL "${NAME}" &>/dev/null || true
+}
+
+trap kill_container EXIT
+
+docker run \
+	--name "${NAME}" \
+	--platform ${DOCKER_PLATFORM} \
+	--user "${UID}:${GID}" \
+	--rm \
+	--tty \
+	--interactive \
+	--volume ${GIT_ROOT}:${HOME}/rrb \
+	--volume ${GIT_ROOT}/.cache:${HOME}/.cache \
+	--volume ${HOME}/rrb/.cache \
+	--workdir ${HOME}/rrb \
+	${DOCKER_IMAGE} \
+	/bin/bash -c "$(cat <<EOF
+set -e
+ln -s ${HOME}/rrb/.bashrc ${HOME}/.bashrc
+cd ${HOME}/rrb
+exec make --no-print-directory ${TARGET}
+EOF
+)"
