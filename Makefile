@@ -25,9 +25,19 @@ export GOARCH ?= $(shell $(GOARCH_SHELL))
 ifneq ($(.SHELLSTATUS),0)
   $(error GOARCH failed! output was $(GOARCH))
 endif
+export GOARCH ?= $(shell $(GOARCH_SHELL))
+ifneq ($(.SHELLSTATUS),0)
+  $(error GOARCH failed! output was $(GOARCH))
+endif
 .PHONY: GOARCH
 GOARCH:
 	@echo $(GOARCH)
+
+GOARCH_DOWNLOAD_SHELL := case $(GOARCH) in 386) echo 386;; amd64) echo amd64;; arm) echo armv6l;; arm64) echo arm64;; *) echo Unknown GOARCH=$(GOARCH) 1>&2 ; exit 1 ;; esac
+GOARCH_DOWNLOAD ?= $(shell $(GOARCH_DOWNLOAD_SHELL))
+ifneq ($(.SHELLSTATUS),0)
+  $(error GOARCH_DOWNLOAD_SHELL failed! output was $(GOARCH_DOWNLOAD))
+endif
 
 GOROOT_PREFIX := $(RRB_CACHE)/GOROOT
 GOROOT := $(GOROOT_PREFIX)/$(GOVERSION).$(GOOS)-$(GOARCH)
@@ -57,9 +67,34 @@ GOCYCLO := $(GO) run github.com/fzipp/gocyclo/cmd/gocyclo
 GOCYCLO_OVER := 15
 
 GO_TEST := $(GO) run github.com/rakyll/gotest ./...
-GO_TEST_FLAGS := -race -coverprofile cover.txt -coverpkg ./... -count=1 -failfast
+GO_TEST_FLAGS := -coverprofile cover.txt -coverpkg ./... -count=1 -failfast
 ifeq ($(V),1)
 GO_TEST_FLAGS := -v $(GO_TEST_FLAGS)
+endif
+# https://go.dev/doc/articles/race_detector#Requirements
+ifeq ($(GOOS)/$(GOARCH),linux/amd64)
+GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),linux/ppc64le)
+GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),linux/arm64)
+GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),freebsd/amd64)
+GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),netbsd/amd64)
+GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),darwin/amd64)
+GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),darwin/arm64)
+GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),windows/amd64)
+GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
 endif
 
 RRB := $(GO) run github.com/fornellas/rrb
@@ -96,7 +131,7 @@ go:
 	if [ -d $(GOROOT) ] ; then exit ; fi
 	rm -rf $(GOROOT_PREFIX)/go
 	mkdir -p $(GOROOT_PREFIX)
-	curl -sSfL  https://go.dev/dl/$(GOVERSION).$(GOOS)-$(GOARCH).tar.gz | \
+	curl -sSfL  https://go.dev/dl/$(GOVERSION).$(GOOS)-$(GOARCH_DOWNLOAD).tar.gz | \
 		tar -zx -C $(GOROOT_PREFIX) && \
 		touch $(GOROOT_PREFIX)/go &&
 		mv $(GOROOT_PREFIX)/go $(GOROOT)
