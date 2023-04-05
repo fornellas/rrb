@@ -8,11 +8,11 @@ on:
       GOARCH:
         required: true
         type: string
+    outputs:
+      artifact:
+        value: rrb.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz
 jobs:
   build:
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
     env:
         GOOS: ${{ inputs.GOOS }}
         GOARCH: ${{ inputs.GOARCH }}
@@ -37,6 +37,7 @@ jobs:
       - name: Build
         run: |
           DOCKER_PLATFORM=${{ inputs.GOOS }}/${{ inputs.GOARCH }} ./build.sh ci GOOS=${{ inputs.GOOS }} GOARCH=${{ inputs.GOARCH }}
+          gzip rrb.${{ inputs.GOOS }}.${{ inputs.GOARCH }}
         shell: bash
       # Git Status
       - name: git status
@@ -50,3 +51,8 @@ jobs:
             exit 1
           fi
         shell: bash
+      # Upload
+      - uses: actions/upload-artifact@v3
+        with:
+          name: rrb.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz
+          path: rrb.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz

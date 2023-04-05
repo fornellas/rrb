@@ -7,17 +7,61 @@ on:
       - "v*"
 concurrency: push
 jobs:
-  build:
-    strategy:
-      matrix:
-        GOOS:
-          - linux
-        GOARCH:
-          - 386
-          - amd64
-          # - arm
-          # - arm64
+  linux_386:
     uses: ./.github/workflows/build.yaml
     with:
-      GOOS: ${{ matrix.GOOS }}
-      GOARCH: ${{ matrix.GOARCH }}
+      GOOS: linux
+      GOARCH: 386
+  linux_amd64:
+    uses: ./.github/workflows/build.yaml
+    with:
+      GOOS: linux
+      GOARCH: amd64
+  linux_arm:
+    uses: ./.github/workflows/build.yaml
+    with:
+      GOOS: linux
+      GOARCH: arm
+  linux_arm64:
+    uses: ./.github/workflows/build.yaml
+    with:
+      GOOS: linux
+      GOARCH: arm64
+  release:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    needs:
+      - linux_386
+      - linux_amd64
+      - linux_arm
+      - linux_arm64
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ needs.linux_386.outputs.artifact }}
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ needs.linux_amd64.outputs.artifact }}
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ needs.linux_arm.outputs.artifact }}
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ needs.linux_arm64.outputs.artifact }}
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ needs.linux_386.outputs.artifact }}
+            ${{ needs.linux_amd64.outputs.artifact }}
+            ${{ needs.linux_arm.outputs.artifact }}
+            ${{ needs.linux_arm64.outputs.artifact }}
+      - name: Add to pkg.go.dev
+        if: startsWith(github.ref, 'refs/tags/')
+        # https://pkg.go.dev/about#adding-a-package
+        run: |
+          set -e
+          curl -v https://proxy.golang.org/github.com/fornellas/resonance/@v/$(git describe --tags).info
+        shell: bash
