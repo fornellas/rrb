@@ -2,7 +2,7 @@ name: push
 on:
   push:
     branches:
-      - 'master'
+      - 'main'
     tags:
       - "v*"
 concurrency: push
