@@ -83,7 +83,7 @@ func init() {
 	)
 	RootCmd.Flags().StringSliceVarP(
 		&patterns, "pattern", "p", []string{
-			"**/*.{c,h,cpp,go,py,rb,sh}",
+			"**/*.{c,h,cpp,go,py,rb,sh,kt}",
 		},
 		"Pattern to watch for changes (relative to given directory)",
 	)
