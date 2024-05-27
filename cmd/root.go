@@ -81,13 +81,13 @@ func init() {
 		&directory, "directory", "d", ".",
 		"Root directory where to watch for file changes",
 	)
-	RootCmd.Flags().StringSliceVarP(
+	RootCmd.Flags().StringArrayVarP(
 		&patterns, "pattern", "p", []string{
 			"**/*.{c,h,cpp,go,py,rb,sh,kt}",
 		},
 		"Pattern to watch for changes (relative to given directory)",
 	)
-	RootCmd.Flags().StringSliceVarP(
+	RootCmd.Flags().StringArrayVarP(
 		&ignorePatterns, "ignore-pattern", "i", []string{
 			"**/*.{o,a,la,pyc}",
 		},
