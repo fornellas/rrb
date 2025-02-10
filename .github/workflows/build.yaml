@@ -15,8 +15,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-        GOOS: ${{ inputs.GOOS }}
-        GOARCH: ${{ inputs.GOARCH }}
+      GOOS: ${{ inputs.GOOS }}
+      GOARCH: ${{ inputs.GOARCH }}
     steps:
       # Checkout
       - name: Checkout
@@ -53,7 +53,7 @@ jobs:
           fi
         shell: bash
       # Upload
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: rrb.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz
           path: rrb.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz
