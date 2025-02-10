@@ -8,12 +8,15 @@ on:
       GOARCH:
         required: true
         type: string
+      runs-on:
+        required: true
+        type: string
     outputs:
       artifact:
         value: rrb.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     env:
       GOOS: ${{ inputs.GOOS }}
       GOARCH: ${{ inputs.GOARCH }}
@@ -21,12 +24,6 @@ jobs:
       # Checkout
       - name: Checkout
         uses: actions/checkout@v3
-      # Architecture support
-      - name: Architecture support
-        if: ${{ inputs.GOARCH != '386' && inputs.GOARCH != 'amd64' }}
-        run: |
-          sudo apt-get -y install binfmt-support qemu-user-static
-        shell: bash
       # Cache
       - name: Cache
         uses: actions/cache@v3
