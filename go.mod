@@ -4,7 +4,6 @@ go 1.23.6
 
 require (
 	al.essio.dev/pkg/shellescape v1.5.1
-	github.com/alessio/shellescape v1.4.2
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/client9/misspell v0.3.4
 	github.com/fatih/color v1.18.0
