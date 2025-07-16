@@ -86,6 +86,24 @@ func (w *Watcher) addRecursively(path string) error {
 			return nil
 		}
 
+		match, err := w.match(w.Config.Patterns, path)
+		if err != nil {
+			panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", path, err))
+		}
+		if !match {
+			logrus.Debugf("not a match: %s", path)
+			return nil
+		}
+
+		match, err = w.match(w.Config.IgnorePatterns, path)
+		if err != nil {
+			panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", path, err))
+		}
+		if match {
+			logrus.Debugf("ignoring: %s", path)
+			return nil
+		}
+
 		if err := w.fsnWatcher.Add(path); err != nil {
 			if path == w.Config.RootPath {
 				return fmt.Errorf("failed to watch root %s: %s", path, err)
@@ -147,24 +165,6 @@ func (w *Watcher) processEvent(
 		if err := w.addRecursively(event.Name); err != nil {
 			w.ErrorsCn <- err
 		}
-	}
-
-	match, err := w.match(w.Config.Patterns, event.Name)
-	if err != nil {
-		panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", event.Name, err))
-	}
-	if !match {
-		logrus.Debugf("not a match: %s", event.Name)
-		return
-	}
-
-	match, err = w.match(w.Config.IgnorePatterns, event.Name)
-	if err != nil {
-		panic(fmt.Sprintf("bug detected: pattern match failed: %s: %s", event.Name, err))
-	}
-	if match {
-		logrus.Debugf("ignoring: %s", event.Name)
-		return
 	}
 
 	logrus.Infof("Changed: %s (%s)", event.Name, event.Op)
