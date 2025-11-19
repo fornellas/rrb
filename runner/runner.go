@@ -1,9 +1,12 @@
 package runner
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strconv"
 	"strings"
 	"syscall"
@@ -12,36 +15,41 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"al.essio.dev/pkg/shellescape"
+	"github.com/creack/pty"
 	"github.com/williammartin/subreaper"
+
+	"golang.org/x/term"
 
 	"github.com/fornellas/rrb/process"
 )
 
 type Runner struct {
-	KillWait time.Duration
-	Name     string
-	Args     []string
-	cmdStr   string
-	idleCn   chan struct{}
-	waitCn   chan struct{}
-	killCn   chan struct{}
-	cmd      *exec.Cmd
+	KillWait       time.Duration
+	PseudoTerminal bool
+	Name           string
+	Args           []string
+	cmdStr         string
+	idleCn         chan struct{}
+	waitCn         chan struct{}
+	killCn         chan struct{}
+	cmd            *exec.Cmd
 }
 
-func NewRunner(killWait time.Duration, name string, args ...string) *Runner {
+func NewRunner(killWait time.Duration, pseudoTerminal bool, name string, args ...string) *Runner {
 	escapedCmd := []string{}
 	for _, s := range append([]string{name}, args...) {
 		escapedCmd = append(escapedCmd, shellescape.Quote(s))
 	}
 
 	r := Runner{
-		KillWait: killWait,
-		Name:     name,
-		Args:     args,
-		cmdStr:   strings.Join(escapedCmd, " "),
-		idleCn:   make(chan struct{}),
-		waitCn:   make(chan struct{}),
-		killCn:   make(chan struct{}),
+		KillWait:       killWait,
+		PseudoTerminal: pseudoTerminal,
+		Name:           name,
+		Args:           args,
+		cmdStr:         strings.Join(escapedCmd, " "),
+		idleCn:         make(chan struct{}),
+		waitCn:         make(chan struct{}),
+		killCn:         make(chan struct{}),
 	}
 	go func() {
 		r.idleCn <- struct{}{}
@@ -191,7 +199,7 @@ func (r *Runner) Kill() {
 	<-r.idleCn
 }
 
-func (r *Runner) Run() error {
+func (r *Runner) Run() (err error) {
 idle:
 	for {
 		select {
@@ -207,25 +215,87 @@ idle:
 		}
 	}
 
+	defer func() {
+		if err != nil {
+			r.idleCn <- struct{}{}
+		}
+	}()
+
 	// This ensures that orphan process will become children of the process
 	// that called Start(), so we can babysit then.
-	if err := subreaper.Set(); err != nil {
-		r.idleCn <- struct{}{}
+	if err = subreaper.Set(); err != nil {
 		return err
 	}
 
 	r.cmd = exec.Command(r.Name, r.Args...)
 	r.cmd.Env = os.Environ()
-	r.cmd.Stdin = os.Stdin
-	r.cmd.Stdout = os.Stdout
-	r.cmd.Stderr = os.Stderr
-	r.cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setsid: true,
-	}
 	logrus.Infof("> %s", r.cmdStr)
-	if err := r.cmd.Start(); err != nil {
-		r.idleCn <- struct{}{}
-		return err
+	if r.PseudoTerminal {
+		var ptyFile *os.File
+		ptyFile, err = pty.Start(r.cmd)
+		if err != nil {
+			return err
+		}
+		// FIXME we can only close this pty after the process is killed
+		defer func() { err = errors.Join(err, ptyFile.Close()) }()
+
+		sigWinchCh := make(chan os.Signal, 1)
+		// FIXME we can only close this channel after the process is killed
+		defer func() {
+			signal.Ignore(syscall.SIGWINCH)
+			close(sigWinchCh)
+		}()
+		signal.Notify(sigWinchCh, syscall.SIGWINCH)
+		// FIXME we must babysit this after the process is killed
+		go func() {
+			for range sigWinchCh {
+				if isErr := pty.InheritSize(ptyFile, os.Stdout); isErr != nil {
+					logrus.Errorf("Error resizing pty: %s", isErr)
+				}
+			}
+		}()
+		sigWinchCh <- syscall.SIGWINCH
+
+		var origStdinTermState *term.State
+		origStdinTermState, err = term.MakeRaw(int(os.Stdin.Fd()))
+		if err != nil {
+			return err
+		}
+		// FIXME we must only restore this after the process is killed
+		defer func() {
+			err = errors.Join(err, term.Restore(int(os.Stdin.Fd()), origStdinTermState))
+		}()
+
+		// FIXME we must babysit this after the process is killed
+		go func() {
+			if _, copyErr := io.Copy(ptyFile, os.Stdin); copyErr != nil {
+				err = errors.Join(err, copyErr)
+			}
+		}()
+
+		// FIXME we must babysit this after the process is killed
+		go func() {
+			if _, copyErr := io.Copy(os.Stdout, ptyFile); copyErr != nil {
+				err = errors.Join(err, copyErr)
+			}
+		}()
+
+		// FIXME we must babysit this after the process is killed
+		go func() {
+			if _, copyErr := io.Copy(os.Stderr, ptyFile); copyErr != nil {
+				err = errors.Join(err, copyErr)
+			}
+		}()
+	} else {
+		r.cmd.Stdin = nil
+		r.cmd.Stdout = os.Stdout
+		r.cmd.Stderr = os.Stderr
+		r.cmd.SysProcAttr = &syscall.SysProcAttr{
+			Setsid: true,
+		}
+		if err = r.cmd.Start(); err != nil {
+			return err
+		}
 	}
 
 	go r.waitAll()
