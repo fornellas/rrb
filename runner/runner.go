@@ -237,18 +237,19 @@ idle:
 			return err
 		}
 		// FIXME we can only close this pty after the process is killed
-		defer func() { err = errors.Join(err, ptyFile.Close()) }()
+		// defer func() { err = errors.Join(err, ptyFile.Close()) }()
 
 		sigWinchCh := make(chan os.Signal, 1)
 		// FIXME we can only close this channel after the process is killed
-		defer func() {
-			signal.Ignore(syscall.SIGWINCH)
-			close(sigWinchCh)
-		}()
+		// defer func() {
+		// 	signal.Ignore(syscall.SIGWINCH)
+		// 	close(sigWinchCh)
+		// }()
 		signal.Notify(sigWinchCh, syscall.SIGWINCH)
 		// FIXME we must babysit this after the process is killed
 		go func() {
 			for range sigWinchCh {
+				// FIXME this seems to not be working
 				if isErr := pty.InheritSize(ptyFile, os.Stdout); isErr != nil {
 					logrus.Errorf("Error resizing pty: %s", isErr)
 				}
@@ -256,15 +257,16 @@ idle:
 		}()
 		sigWinchCh <- syscall.SIGWINCH
 
-		var origStdinTermState *term.State
-		origStdinTermState, err = term.MakeRaw(int(os.Stdin.Fd()))
+		// var origStdinTermState *term.State
+		_, err = term.MakeRaw(int(os.Stdin.Fd()))
+		// origStdinTermState, err = term.MakeRaw(int(os.Stdin.Fd()))
 		if err != nil {
 			return err
 		}
 		// FIXME we must only restore this after the process is killed
-		defer func() {
-			err = errors.Join(err, term.Restore(int(os.Stdin.Fd()), origStdinTermState))
-		}()
+		// defer func() {
+		// 	err = errors.Join(err, term.Restore(int(os.Stdin.Fd()), origStdinTermState))
+		// }()
 
 		// FIXME we must babysit this after the process is killed
 		go func() {
