@@ -40,7 +40,7 @@ var RootCmd = &cobra.Command{
 		}
 		defer w.Close()
 
-		r := runner.NewRunner(killWait, args[0], args[1:]...)
+		r := runner.NewRunner(killWait, !disablePseudoTerminal, args[0], args[1:]...)
 
 		sigCn := make(chan os.Signal, 1)
 		signal.Notify(sigCn, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
@@ -68,6 +68,7 @@ var ignorePatterns []string
 var debounce time.Duration
 var killWait time.Duration
 var logLevel string
+var disablePseudoTerminal bool
 
 func cobraInit() {
 	if err := log.Setup(logLevel); err != nil {
@@ -105,4 +106,5 @@ func init() {
 		&logLevel, "log-level", "l", "info",
 		"Logging level",
 	)
+	RootCmd.Flags().BoolVarP(&disablePseudoTerminal, "disable-pseudo-terminal", "n", false, "Disable pseudo terminal for spawned command.")
 }
