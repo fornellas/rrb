@@ -33,6 +33,12 @@ jobs:
       - linux_amd64
       - linux_arm64
     steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.linux_amd64.outputs.artifact }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.linux_arm64.outputs.artifact }}
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
