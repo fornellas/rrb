@@ -22,7 +22,7 @@ on:
         default: true
     outputs:
       artifact:
-        value: rrb.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz
+        value: rrb.linux.${{ inputs.GOARCH }}.gz
 jobs:
   build:
     runs-on: ${{ inputs.runs-on }}
@@ -80,13 +80,13 @@ jobs:
       - name: Compress
         if: ${{ inputs.upload-artifact == true }}
         run: |
-          gzip rrb.${{ inputs.GOOS }}.${{ inputs.GOARCH }}
+          gzip rrb.linux.${{ inputs.GOARCH }}
       # Upload
       - uses: actions/upload-artifact@v4
         if: ${{ inputs.upload-artifact == true }}
         with:
-          name: rrb.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz
-          path: rrb.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz
+          name: rrb.linux.${{ inputs.GOARCH }}.gz
+          path: rrb.linux.${{ inputs.GOARCH }}.gz
       # Cache save
       - name: Cache save
         uses: actions/cache/save@v6
