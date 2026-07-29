@@ -9,13 +9,6 @@ on:
     tags:
       - "v*"
 jobs:
-  linux_386:
-    uses: ./.github/workflows/build-linux.yaml
-    with:
-      upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
-      GOARCH: 386
-      runs-on: ubuntu-26.04
-    secrets: inherit
   linux_amd64:
     uses: ./.github/workflows/build-linux.yaml
     with:
@@ -37,7 +30,6 @@ jobs:
     permissions:
       contents: write
     needs:
-      - linux_386
       - linux_amd64
       - linux_arm64
     steps:
@@ -45,7 +37,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ${{ needs.linux_386.outputs.artifact }}
             ${{ needs.linux_amd64.outputs.artifact }}
             ${{ needs.linux_arm64.outputs.artifact }}
       - name: Add to pkg.go.dev
@@ -56,7 +47,6 @@ jobs:
         shell: bash
   coveralls:
     needs:
-      - linux_386
       - linux_amd64
       - linux_arm64
     runs-on: ubuntu-26.04

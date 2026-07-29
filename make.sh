@@ -104,10 +104,6 @@ fi
 if [ -n "${GO_TEST_BINARY_FLAGS_EXTRA}" ] ; then
 	GO_ENV_ARGS="$GO_ENV_ARGS --env GO_TEST_BINARY_FLAGS_EXTRA=${GO_TEST_BINARY_FLAGS_EXTRA}"
 fi
-# https://github.com/moby/moby/issues/42732
-if [ "$DOCKER_PLATFORM" == "linux/386" ] && [ "$DOCKER_PLATFORM_ARCH_NATIVE" == "x86_64" ] ; then
-	GO_ENV_ARGS="$GO_ENV_ARGS --env GOARCH_DOWNLOAD=386"
-fi
 
 docker run \
 	--name "${NAME}" \

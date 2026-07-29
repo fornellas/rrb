@@ -58,7 +58,7 @@ ifneq ($(.SHELLSTATUS),0)
   $(error $(SHELL_GOOS): $(GOOS))
 endif
 
-SHELL_GOARCH_NATIVE := case $(UNAME_M) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64|arm64) echo arm64;; *) echo Unknown machine $(UNAME_M) 1>&2 ; exit 1 ;; esac
+SHELL_GOARCH_NATIVE := case $(UNAME_M) in x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64|arm64) echo arm64;; *) echo Unknown machine $(UNAME_M) 1>&2 ; exit 1 ;; esac
 GOARCH_NATIVE := $(shell $(SHELL_GOARCH_NATIVE))
 ifneq ($(.SHELLSTATUS),0)
   $(error $(SHELL_GOARCH_NATIVE): $(GOARCH_NATIVE))
@@ -66,7 +66,7 @@ endif
 
 export GOARCH ?= $(GOARCH_NATIVE)
 
-SHELL_GOARCH_DOWNLOAD := case $(GOARCH_NATIVE) in 386) echo 386;; amd64) echo amd64;; arm) echo armv6l;; arm64) echo arm64;; *) echo GOARCH $(GOARCH_NATIVE) 1>&2 ; exit 1 ;; esac
+SHELL_GOARCH_DOWNLOAD := case $(GOARCH_NATIVE) in amd64) echo amd64;; arm) echo armv6l;; arm64) echo arm64;; *) echo GOARCH $(GOARCH_NATIVE) 1>&2 ; exit 1 ;; esac
 GOARCH_DOWNLOAD ?= $(shell $(SHELL_GOARCH_DOWNLOAD))
 ifneq ($(.SHELLSTATUS),0)
   $(error $(SHELL_GOARCH_DOWNLOAD): $(GOARCH_DOWNLOAD))

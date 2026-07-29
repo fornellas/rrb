@@ -30,7 +30,7 @@ jobs:
       GOOS: linux
       GOARCH: ${{ inputs.GOARCH }}
       XDG_CACHE_HOME: /tmp/XDG_CACHE_HOME
-      DOCKER_PLATFORM: linux/${{ inputs.GOARCH == '386' && 'amd64' || inputs.GOARCH }}
+      DOCKER_PLATFORM: linux/${{ inputs.GOARCH }}
       GO_TEST_BINARY_FLAGS_EXTRA: -v
     steps:
       # Checkout
@@ -102,7 +102,7 @@ jobs:
           flag-name: linux.${{ inputs.GOARCH }}
           parallel: true
           allow-empty: true
-          coverage-reporter-platform: ${{ inputs.GOARCH == '386' || inputs.GOARCH == 'amd64' && 'x86_64' || inputs.GOARCH == 'arm64' && 'arm64' }}
+          coverage-reporter-platform: ${{ inputs.GOARCH == 'amd64' && 'x86_64' || inputs.GOARCH == 'arm64' && 'arm64' }}
       # Clean
       - name: Clean
         run: ./make.sh clean
