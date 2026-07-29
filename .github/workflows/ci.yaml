@@ -40,11 +40,12 @@ jobs:
         with:
           name: ${{ needs.linux_arm64.outputs.artifact }}
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             ${{ needs.linux_amd64.outputs.artifact }}
             ${{ needs.linux_arm64.outputs.artifact }}
+          fail_on_unmatched_files: true
       - name: Add to pkg.go.dev
         # https://pkg.go.dev/about#adding-a-package
         run: |
