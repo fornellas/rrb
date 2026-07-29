@@ -1,5 +1,5 @@
 [![Latest Release](https://img.shields.io/github/v/release/fornellas/rrb)](https://github.com/fornellas/rrb/releases)
-[![Push](https://github.com/fornellas/rrb/actions/workflows/push.yaml/badge.svg)](https://github.com/fornellas/rrb/actions/workflows/push.yaml)
+[![CI](https://github.com/fornellas/rrb/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/fornellas/rrb/actions/workflows/ci.yaml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/fornellas/rrb)](https://goreportcard.com/report/github.com/fornellas/rrb)
 [![Go Reference](https://pkg.go.dev/badge/github.com/fornellas/rrb.svg)](https://pkg.go.dev/github.com/fornellas/rrb)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
