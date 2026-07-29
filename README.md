@@ -98,18 +98,10 @@ Success: exit status 0
 Pick the [latest release](https://github.com/fornellas/rrb/releases) with:
 
 ```bash
-GOARCH=$(case $(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64) echo arm64;; *) echo Unknown machine $(uname -m) 1>&2 ; exit 1 ;; esac) && wget -O- https://github.com/fornellas/rrb/releases/latest/download/rrb.linux.$GOARCH.gz | gunzip > rrb && chmod 755 rrb
+GOARCH=$(case $(uname -m) in x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64) echo arm64;; *) echo Unknown machine $(uname -m) 1>&2 ; exit 1 ;; esac) && wget -O- https://github.com/fornellas/rrb/releases/latest/download/rrb.linux.$GOARCH.gz | gunzip > rrb && chmod 755 rrb
 ./rrb --help
 ```
 
 ## Development
 
-[Docker](https://www.docker.com/) is used to create a reproducible development environment on any machine:
-
-```bash
-git clone git@github.com:fornellas/rrb.git
-cd rrb/
-./builld.sh
-```
-
-Typically you'll want to stick to `./builld.sh rrb`, as it enables you to edit files as preferred, and the build will automatically be triggered on any file changes.
+Check [README.development.md](README.development.md).
