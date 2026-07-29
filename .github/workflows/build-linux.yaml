@@ -80,7 +80,6 @@ jobs:
       - name: Compress
         if: ${{ inputs.upload-artifact == true }}
         run: |
-          ls -lh
           gzip rrb.linux.${{ inputs.GOARCH }}
       # Upload
       - uses: actions/upload-artifact@v4

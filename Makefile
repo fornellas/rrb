@@ -438,6 +438,35 @@ endif
 endif
 
 ##
+## Build
+##
+
+# help
+
+.PHONY: help-build
+help-build:
+	@echo 'build: build everything'
+	@echo '  use GO_BUILD_FLAGS to add extra build flags (see `go help build`)'
+help: help-build
+
+# build
+
+.PHONY: build
+build: install-go go-generate
+	$(GO) \
+		build \
+		-o rrb.$(GOOS).$(GOARCH) \
+		$(GO_BUILD_FLAGS_COMMON) \
+		$(GO_BUILD_FLAGS) \
+		./cmd/
+
+.PHONY: clean-build
+clean-build:
+	$(GO) env &>/dev/null && $(GO) clean -r -cache -modcache
+	rm -f rrb.*.*
+clean: clean-build
+
+##
 ## ci
 ##
 
@@ -448,7 +477,7 @@ help-ci:
 help: help-ci
 
 .PHONY: ci
-ci: lint test
+ci: lint test build
 
 .PHONY: ci-dev
 ci-dev:
