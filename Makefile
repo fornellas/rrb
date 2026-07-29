@@ -458,7 +458,7 @@ build: install-go go-generate
 		-o rrb.$(GOOS).$(GOARCH) \
 		$(GO_BUILD_FLAGS_COMMON) \
 		$(GO_BUILD_FLAGS) \
-		./cmd/
+		.
 
 .PHONY: clean-build
 clean-build:
