@@ -82,7 +82,7 @@ jobs:
         run: |
           gzip rrb.linux.${{ inputs.GOARCH }}
       # Upload
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ inputs.upload-artifact == true }}
         with:
           name: rrb.linux.${{ inputs.GOARCH }}.gz
@@ -132,7 +132,7 @@ jobs:
       # Create Pull Request
       - name: Create Pull Request
         if: ${{ inputs.update-deps == true }}
-        uses: peter-evans/create-pull-request@v6.1.0
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: Update dependencies
           title: Update dependencies
