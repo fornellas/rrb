@@ -27,8 +27,8 @@ require (
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.24.0 // indirect
-	github.com/spf13/pflag v1.0.10 // indirect
-	golang.org/x/exp/typeparams v0.0.0-20261014143641-f0251eb4aa3e // indirect
+	github.com/spf13/pflag v1.1.0 // indirect
+	golang.org/x/exp/typeparams v0.0.0-20261106192419-47ce03d25ef0 // indirect
 	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
