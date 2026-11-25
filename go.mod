@@ -4,7 +4,7 @@ go 1.27.4
 
 require (
 	al.essio.dev/pkg/shellescape v1.6.1
-	github.com/bmatcuk/doublestar/v4 v4.10.4
+	github.com/bmatcuk/doublestar/v4 v4.10.7
 	github.com/client9/misspell v0.3.4
 	github.com/fatih/color v1.19.0
 	github.com/fsnotify/fsnotify v1.10.1
@@ -14,7 +14,7 @@ require (
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.10.2
 	github.com/williammartin/subreaper v0.0.0-20181101193406-731d9ece6883
-	golang.org/x/tools v0.52.0
+	golang.org/x/tools v0.53.0
 	honnef.co/go/tools v0.8.2
 )
 
@@ -28,12 +28,12 @@ require (
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.24.0 // indirect
 	github.com/spf13/pflag v1.1.0 // indirect
-	golang.org/x/exp/typeparams v0.0.0-20261113113407-e3970619a1a4 // indirect
+	golang.org/x/exp/typeparams v0.0.0-20261121134650-e1094eeca1b5 // indirect
 	golang.org/x/mod v0.43.0 // indirect
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
-	golang.org/x/telemetry v0.0.0-20261111153349-cdaf7e97dd7b // indirect
-	golang.org/x/vuln v1.9.0 // indirect
+	golang.org/x/telemetry v0.0.0-20261119160235-508b12de1089 // indirect
+	golang.org/x/vuln v1.10.0 // indirect
 )
 
 tool (
